@@ -9,7 +9,10 @@ import { getAuth } from "firebase-admin/auth";
 import { createClient } from "@supabase/supabase-js";
 
 // Supabase Client Initialization
-const supabaseUrl = process.env.SUPABASE_URL || "";
+let supabaseUrl = process.env.SUPABASE_URL || "";
+if (supabaseUrl.endsWith("/rest/v1") || supabaseUrl.endsWith("/rest/v1/")) {
+  supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, "");
+}
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
@@ -510,7 +513,7 @@ app.post("/api/saas/agencies", checkMasterAuth, async (req, res) => {
         
         if (data.error && data.error.message === "EMAIL_EXISTS") {
           console.log("Firebase Auth User already exists. Using existing user.");
-          generatedPassword = "";
+          generatedPassword = "ALREADY_EXISTS";
         } else if (data.idToken) {
           masterUser.id = data.localId; // Use the Firebase Auth UID
           
@@ -526,11 +529,14 @@ app.post("/api/saas/agencies", checkMasterAuth, async (req, res) => {
           }).catch(console.warn);
         } else {
           console.warn("Firebase Auth response warning:", data.error);
-          generatedPassword = "";
+          return res.status(400).json({ error: `Erro na Autenticação (Firebase): ${data.error?.message || "Erro desconhecido ao criar usuário de login."}` });
         }
+      } else {
+         return res.status(500).json({ error: "Configuração do Firebase API Key não encontrada no servidor." });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Error creating Firebase Auth User via REST:", err);
+      return res.status(500).json({ error: `Erro de conexão ao criar usuário no Firebase: ${err.message}` });
     }
     
     if (generatedPassword && process.env.RESEND_API_KEY) {
@@ -1095,10 +1101,10 @@ app.delete("/api/vouchers/:id", async (req, res) => {
 // -------------------------------------------------------------
 app.post("/api/parse-voucher", async (req, res) => {
   try {
-    const { text, fileBase64, mimeType } = req.body;
+    const { text, fileBase64, mimeType, files } = req.body;
 
-    if (!text && !fileBase64) {
-      return res.status(400).json({ error: "Envie um texto ou anexe um arquivo (PDF ou imagem) para extração." });
+    if (!text && !fileBase64 && (!files || files.length === 0)) {
+      return res.status(400).json({ error: "Envie um texto ou anexe arquivos (PDF ou imagem) para extração." });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -1291,27 +1297,50 @@ REGRAS DE EXTRAÇÃO:
 - Formate a bagagem: Bagagem: 🎒 Item pessoal + 🧳 Mala de bordo (10kg) [+ 🧳 Mala despachada]. APENAS itens inclusos.
 - Retorne APENAS o JSON puro. Sem markdown, sem explicações.`;
 
-    const cleanBase64 = fileBase64 ? fileBase64.replace(/^data:[^;]+;base64,/, "") : "";
     const parts: any[] = [];
 
-    if (cleanBase64) {
-      let resolvedMime = mimeType || "application/pdf";
-      if (!mimeType) {
-        if (cleanBase64.startsWith("JVBERi")) {
-          resolvedMime = "application/pdf";
-        } else if (cleanBase64.startsWith("/9j/")) {
-          resolvedMime = "image/jpeg";
-        } else if (cleanBase64.startsWith("iVBORw0KGgo")) {
-          resolvedMime = "image/png";
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const cleanBase64 = file.base64 ? file.base64.replace(/^data:[^;]+;base64,/, "") : "";
+        if (cleanBase64) {
+          let resolvedMime = file.mimeType || "application/pdf";
+          if (!file.mimeType) {
+            if (cleanBase64.startsWith("JVBERi")) {
+              resolvedMime = "application/pdf";
+            } else if (cleanBase64.startsWith("/9j/")) {
+              resolvedMime = "image/jpeg";
+            } else if (cleanBase64.startsWith("iVBORw0KGgo")) {
+              resolvedMime = "image/png";
+            }
+          }
+          parts.push({
+            inlineData: {
+              data: cleanBase64,
+              mimeType: resolvedMime
+            }
+          });
         }
       }
-
-      parts.push({
-        inlineData: {
-          data: cleanBase64,
-          mimeType: resolvedMime
+    } else if (fileBase64) {
+      const cleanBase64 = fileBase64.replace(/^data:[^;]+;base64,/, "");
+      if (cleanBase64) {
+        let resolvedMime = mimeType || "application/pdf";
+        if (!mimeType) {
+          if (cleanBase64.startsWith("JVBERi")) {
+            resolvedMime = "application/pdf";
+          } else if (cleanBase64.startsWith("/9j/")) {
+            resolvedMime = "image/jpeg";
+          } else if (cleanBase64.startsWith("iVBORw0KGgo")) {
+            resolvedMime = "image/png";
+          }
         }
-      });
+        parts.push({
+          inlineData: {
+            data: cleanBase64,
+            mimeType: resolvedMime
+          }
+        });
+      }
     }
 
     if (text && text.trim()) {
