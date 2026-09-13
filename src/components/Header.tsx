@@ -74,11 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Logo & Agency Identifier */}
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center">
-              <img src={logoUrl} alt="AiVoucher" className="h-10 w-auto object-contain" onError={(e) => {
-                // Fallback icon just in case the image hasn't been uploaded yet
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling?.classList.remove('hidden');
-              }} />
+              <img src={logoUrl} alt="AiVoucher" className="h-10 w-auto object-contain" />
               <div className="hidden h-10 w-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-xs">
                 <Plane className="w-5 h-5 transform -rotate-45" />
               </div>
