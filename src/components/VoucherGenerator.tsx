@@ -741,7 +741,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
           <button
             type="button"
             onClick={handleProcessWithGemini}
-            disabled={isProcessing || (!inputText.trim() && !selectedFile)}
+            disabled={isProcessing || (!inputText.trim() && selectedFiles.length === 0)}
             className="px-6 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-lg shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all shrink-0 cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
