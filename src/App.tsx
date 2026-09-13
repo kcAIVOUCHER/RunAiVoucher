@@ -43,6 +43,26 @@ export default function App() {
   // Team Modal state
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
 
+  // Global Platform Settings (Favicon)
+  useEffect(() => {
+    fetch("/api/saas/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.platformLogoUrl) {
+          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+          if (link) {
+            link.href = data.platformLogoUrl;
+          } else {
+            const newLink = document.createElement("link");
+            newLink.rel = "icon";
+            newLink.href = data.platformLogoUrl;
+            document.head.appendChild(newLink);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Load all agencies for switcher & set initial agency
   const loadAgenciesList = async () => {
     try {
