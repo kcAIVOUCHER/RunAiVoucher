@@ -1,0 +1,68 @@
+{
+  "plans": [
+    {
+      "id": "plan-starter",
+      "name": "Starter Agência",
+      "code": "starter",
+      "description": "Ideal para agências de pequeno porte, consultores independentes e novos agentes.",
+      "basePrice": 199,
+      "baseUsers": 2,
+      "pricePerExtraUser": 49,
+      "maxVouchersPerMonth": 150,
+      "aiVoucherExtractionsIncluded": 100,
+      "isPopular": false,
+      "features": [
+        "Até 2 usuários/logins inclusos",
+        "150 emissões de vouchers por mês",
+        "Leitura IA com Gemini (PDF e fotos)",
+        "Logo e identidade visual da agência",
+        "Suporte por e-mail e base de conhecimento"
+      ]
+    },
+    {
+      "id": "plan-pro",
+      "name": "Profissional Corp",
+      "code": "pro",
+      "description": "Para agências consolidadas com atendimento corporativo, operando em volume diário.",
+      "basePrice": 389,
+      "baseUsers": 5,
+      "pricePerExtraUser": 39,
+      "maxVouchersPerMonth": 600,
+      "aiVoucherExtractionsIncluded": 400,
+      "isPopular": true,
+      "features": [
+        "Até 5 usuários/logins inclusos",
+        "Assentos extras por apenas R$ 39/mês",
+        "Vínculo ilimitado de empresas clientes",
+        "Regras tarifárias pré-definidas por cliente",
+        "Emissão com duplo logo (Agência + Empresa)",
+        "Suporte prioritário via WhatsApp"
+      ]
+    },
+    {
+      "id": "plan-enterprise",
+      "name": "Enterprise Corporate",
+      "code": "enterprise",
+      "description": "Para TMCs, grandes consolidadoras e redes com alta equipe e múltiplos departamentos.",
+      "basePrice": 890,
+      "baseUsers": 15,
+      "pricePerExtraUser": 29,
+      "maxVouchersPerMonth": -1,
+      "aiVoucherExtractionsIncluded": 2500,
+      "isPopular": false,
+      "features": [
+        "15 usuários inclusos + assentos flexíveis",
+        "Vouchers e leituras com IA ilimitados",
+        "Múltiplos centros de custo corporativos",
+        "Gestão de permissões avançadas e auditoria",
+        "SLA de suporte dedicado 24/7",
+        "Faturamento e NFS-e automáticas customizadas"
+      ]
+    }
+  ],
+  "agencies": [],
+  "agencyUsers": [],
+  "invoices": [],
+  "companies": [],
+  "vouchers": []
+}
