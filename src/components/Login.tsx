@@ -57,10 +57,7 @@ export const Login: React.FC = () => {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
         <div className="bg-slate-900 p-8 text-center flex flex-col items-center">
           <div className="w-full flex justify-center mb-4">
-            <img src={logoUrl} alt="AiVoucher" className="h-16 w-auto object-contain bg-white/5 rounded-xl p-2" onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-            }} />
+            <img src={logoUrl} alt="AiVoucher" className="h-16 w-auto object-contain bg-white/5 rounded-xl p-2" />
             <div className="hidden inline-flex items-center justify-center w-16 h-16 bg-white/10 rounded-full">
               <Building2 className="w-8 h-8 text-white" />
             </div>
