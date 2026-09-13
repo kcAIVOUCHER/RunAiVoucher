@@ -32,83 +32,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userEmail = (firebaseUser.email || "").toLowerCase().trim();
           const isMasterEmail = userEmail === "kcarrascosa.comercial@gmail.com";
 
-          const docRef = doc(db, "users", firebaseUser.uid);
-          const docSnap = await getDoc(docRef);
-          
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            let finalRole: Role = isMasterEmail ? "master" : (data.role || "agency_user");
-            let finalAgencyId = data.agencyId;
+          // Fetch authoritative role from backend API first (backed by Supabase/store)
+          let backendRole: Role = isMasterEmail ? "master" : "agency_user";
+          let backendAgencyId: string | undefined = undefined;
+          let backendName = firebaseUser.displayName || (isMasterEmail ? "Administrador Master SaaS" : "Usuário");
 
-            // Self-heal: always verify with backend in case database was reset and agency IDs changed
-            try {
-              const res = await fetch(`/api/users/check-role?email=${encodeURIComponent(userEmail)}`);
-              if (res.ok) {
-                const checkData = await res.json();
-                if (checkData.agencyId !== data.agencyId) {
-                   finalAgencyId = checkData.agencyId;
-                   finalRole = checkData.role || finalRole;
-                   await setDoc(docRef, { agencyId: finalAgencyId || null, role: finalRole }, { merge: true }).catch(console.error);
-                }
-              }
-            } catch(e) {
-              console.error("Error verifying role:", e);
+          try {
+            const res = await fetch(`/api/users/check-role?email=${encodeURIComponent(userEmail)}`);
+            if (res.ok) {
+              const checkData = await res.json();
+              if (checkData.role) backendRole = checkData.role as Role;
+              if (checkData.agencyId) backendAgencyId = checkData.agencyId;
+              if (checkData.name) backendName = checkData.name;
             }
-
-            // If master user profile had an outdated role in Firestore, heal it automatically
-            if (isMasterEmail && finalRole !== "master") {
-              finalRole = "master";
-              setDoc(docRef, { role: "master" }, { merge: true }).catch(console.error);
-            }
-
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              ...data,
-              agencyId: finalAgencyId,
-              role: finalRole
-            } as UserProfile);
-          } else {
-            // User authenticated but no profile in Firestore, fetch role from backend
-            let role: Role = isMasterEmail ? "master" : "agency_user";
-            let agencyId: string | undefined = undefined;
-            let userName = firebaseUser.displayName || (isMasterEmail ? "Administrador Master SaaS" : "Novo Usuário");
-
-            try {
-              const res = await fetch(`/api/users/check-role?email=${encodeURIComponent(userEmail)}`);
-              if (res.ok) {
-                const data = await res.json();
-                if (data.role) role = data.role as Role;
-                if (data.agencyId) agencyId = data.agencyId;
-                if (data.name) userName = data.name;
-              }
-            } catch (e) {
-              console.error("Error fetching role from backend:", e);
-            }
-
-            if (isMasterEmail) {
-              role = "master";
-            }
-
-            const defaultProfile: any = {
-              email: firebaseUser.email || "",
-              role: role,
-              name: userName,
-              createdAt: new Date().toISOString()
-            };
-            if (agencyId) {
-              defaultProfile.agencyId = agencyId;
-            }
-            
-            await setDoc(docRef, defaultProfile, { merge: true });
-            setUser({
-              uid: firebaseUser.uid,
-              ...defaultProfile,
-            } as UserProfile);
+          } catch (e) {
+            console.warn("Could not check role with backend API:", e);
           }
+
+          if (isMasterEmail) {
+            backendRole = "master";
+          }
+
+          // Fallback user profile in memory immediately
+          let profile: UserProfile = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            name: backendName,
+            role: backendRole,
+            agencyId: backendAgencyId
+          };
+
+          // Attempt to sync/read from Firestore, but gracefully ignore any permission errors
+          try {
+            const docRef = doc(db, "users", firebaseUser.uid);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              const finalRole = isMasterEmail ? "master" : (backendRole || data.role || "agency_user");
+              const finalAgencyId = backendAgencyId || data.agencyId;
+              
+              profile = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || "",
+                name: data.name || backendName,
+                role: finalRole,
+                agencyId: finalAgencyId
+              };
+
+              // Update Firestore asynchronously if needed without blocking
+              setDoc(docRef, { role: finalRole, agencyId: finalAgencyId || null }, { merge: true }).catch(() => {});
+            } else {
+              setDoc(docRef, {
+                email: firebaseUser.email || "",
+                role: backendRole,
+                name: backendName,
+                agencyId: backendAgencyId || null,
+                createdAt: new Date().toISOString()
+              }, { merge: true }).catch(() => {});
+            }
+          } catch (fsErr) {
+            console.warn("Firestore user sync warning (using backend session profile):", fsErr);
+          }
+
+          setUser(profile);
         } catch (error) {
-          console.error("Error fetching user profile:", error);
-          setUser(null);
+          console.error("Error setting user session:", error);
+          // If user is logged into Firebase Auth, never leave user as null if we have their email
+          const fallbackEmail = (firebaseUser.email || "").toLowerCase().trim();
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            name: firebaseUser.displayName || (fallbackEmail === "kcarrascosa.comercial@gmail.com" ? "Administrador Master SaaS" : "Usuário"),
+            role: fallbackEmail === "kcarrascosa.comercial@gmail.com" ? "master" : "agency_user"
+          });
         }
       } else {
         setUser(null);
