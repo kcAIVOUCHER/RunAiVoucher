@@ -51,11 +51,11 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
 }) => {
   // Input states
   const [inputText, setInputText] = useState("");
-  const [selectedFile, setSelectedFile] = useState<{
+  const [selectedFiles, setSelectedFiles] = useState<{
     name: string;
     base64: string;
     mimeType: string;
-  } | null>(null);
+  }[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [processStatus, setProcessStatus] = useState("");
@@ -228,27 +228,42 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
 
   // Handle File Upload (PDF or Image)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      const base64Data = result.split(",")[1];
-      setSelectedFile({
-        name: file.name,
-        base64: base64Data,
-        mimeType: file.type || (file.name.endsWith(".pdf") ? "application/pdf" : "image/jpeg")
-      });
+    const newFiles = Array.from(files);
+    
+    Promise.all(
+      newFiles.map((file) => {
+        return new Promise<{name: string; base64: string; mimeType: string;}>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            const base64Data = result.split(",")[1];
+            resolve({
+              name: file.name,
+              base64: base64Data,
+              mimeType: file.type || (file.name.endsWith(".pdf") ? "application/pdf" : "image/jpeg")
+            });
+          };
+          reader.readAsDataURL(file);
+        });
+      })
+    ).then((processedFiles) => {
+      setSelectedFiles((prev) => [...prev, ...processedFiles]);
       setParseError(null);
-    };
-    reader.readAsDataURL(file);
+    });
+    
+    // Reset input so the same files can be selected again if needed
+    if (e.target) {
+      e.target.value = '';
+    }
   };
 
   // Call Gemini API to parse
   const handleProcessWithGemini = async () => {
-    if (!inputText.trim() && !selectedFile) {
-      setParseError("Por favor, cole um texto ou selecione um arquivo (PDF ou Imagem) primeiro.");
+    if (!inputText.trim() && selectedFiles.length === 0) {
+      setParseError("Por favor, cole um texto ou selecione pelo menos um arquivo (PDF ou Imagem) primeiro.");
       return;
     }
 
@@ -271,9 +286,11 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
       if (inputText.trim()) {
         payload.text = inputText.trim();
       }
-      if (selectedFile) {
-        payload.fileBase64 = selectedFile.base64;
-        payload.mimeType = selectedFile.mimeType;
+      if (selectedFiles.length > 0) {
+        payload.files = selectedFiles.map(f => ({
+          base64: f.base64,
+          mimeType: f.mimeType
+        }));
       }
 
       const response = await fetch("/api/parse-voucher", {
@@ -611,39 +628,45 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
             </label>
             <label className="relative border-2 border-dashed border-slate-300 hover:border-sky-500 bg-slate-50 hover:bg-sky-50/40 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors h-40 text-center">
               <UploadCloud className="w-8 h-8 text-sky-600" />
-              {selectedFile ? (
+              {selectedFiles.length > 0 ? (
                 <div>
                   <span className="text-xs font-bold text-sky-800 block">
-                    ✓ Arquivo selecionado: {selectedFile.name}
+                    ✓ {selectedFiles.length} arquivo(s) selecionado(s)
                   </span>
-                  <span className="text-[11px] text-slate-500">
-                    Clique para trocar de arquivo
+                  <div className="text-[10px] text-slate-500 mt-1 max-h-12 overflow-y-auto">
+                    {selectedFiles.map((f, i) => (
+                      <div key={i} className="truncate">{f.name}</div>
+                    ))}
+                  </div>
+                  <span className="text-[11px] text-sky-600 block mt-2 font-medium">
+                    Clique para adicionar mais arquivos
                   </span>
                 </div>
               ) : (
                 <div>
                   <span className="text-xs font-bold text-slate-700 block">
-                    Clique para selecionar ou arraste o PDF / Imagem aqui
+                    Clique para selecionar ou arraste PDFs / Imagens aqui
                   </span>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
-                    Formatos suportados: PDF, JPG, PNG, WEBP (até 20MB)
+                    Você pode selecionar vários arquivos de uma vez
                   </span>
                 </div>
               )}
               <input
                 type="file"
+                multiple
                 accept=".pdf,image/*"
                 onChange={handleFileUpload}
                 className="hidden"
               />
             </label>
-            {selectedFile && (
+            {selectedFiles.length > 0 && (
               <button
                 type="button"
-                onClick={() => setSelectedFile(null)}
+                onClick={() => setSelectedFiles([])}
                 className="text-[11px] text-red-600 hover:underline block"
               >
-                Remover anexo
+                Remover todos os anexos
               </button>
             )}
           </div>
