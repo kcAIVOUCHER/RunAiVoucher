@@ -251,7 +251,9 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.generatedPassword) {
+          if (data.generatedPassword === "ALREADY_EXISTS") {
+            alert(`Agência criada com sucesso e vinculada ao usuário existente!\n\nEmail: ${formMasterEmail}\nSenha: (Conta já existia no Firebase. Use a senha que o usuário já tinha ou peça para ele usar 'Esqueci a Senha' na tela de login.)`);
+          } else if (data.generatedPassword) {
             alert(`Agência criada com sucesso!\n\nEmail: ${formMasterEmail}\nSenha Gerada: ${data.generatedPassword}\n\nUm email foi disparado com essas credenciais.`);
           } else {
             alert(`Agência criada com sucesso!\n\nEmail: ${formMasterEmail}\nSenha: ${formPassword || "(definida no formulário)"}\n\nO acesso da agência foi liberado com sucesso no sistema!`);
@@ -295,6 +297,37 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
           }
         } catch (err) {
           console.error("Erro no upload do logo da plataforma:", err);
+          alert("Erro de conexão.");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePlatformIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1 * 1024 * 1024) {
+        alert("O ícone da plataforma deve ter no máximo 1MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Url = reader.result as string;
+        try {
+          const res = await fetch("/api/saas/settings", {
+            method: "PUT",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ platformIconUrl: base64Url })
+          });
+          if (res.ok) {
+            setPlatformSettings(await res.json());
+            alert("Ícone da plataforma atualizado com sucesso! Recarregue a página para aplicar a alteração globalmente.");
+          } else {
+            alert("Erro ao salvar configuração.");
+          }
+        } catch (err) {
+          console.error("Erro no upload do ícone da plataforma:", err);
           alert("Erro de conexão.");
         }
       };
@@ -1572,6 +1605,67 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
                             method: "PUT",
                             headers: getAuthHeaders(),
                             body: JSON.stringify({ platformLogoUrl: null })
+                          });
+                          if (res.ok) {
+                            setPlatformSettings(await res.json());
+                          }
+                        } catch (e) {}
+                      }}
+                      className="ml-3 inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold rounded-xl cursor-pointer transition-colors"
+                    >
+                      Remover
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-slate-100 rounded-xl p-6 bg-slate-50 mt-4">
+              <label className="block text-sm font-bold text-slate-700 mb-4">
+                Ícone da Plataforma (Favicon / App Mobile)
+              </label>
+              
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center justify-center p-2 relative">
+                  {platformSettings?.platformIconUrl ? (
+                    <img 
+                      src={platformSettings.platformIconUrl} 
+                      alt="Ícone Plataforma" 
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center">
+                      <ImageIcon className="w-6 h-6 text-slate-300" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex-1">
+                  <p className="text-xs text-slate-500 mb-3">
+                    Este símbolo aparecerá na aba do navegador e no ícone quando o usuário instalar como atalho no celular. 
+                    Envie uma imagem quadrada (ex: 512x512) em formato PNG ou JPG.
+                  </p>
+                  
+                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-slate-800 transition-colors shadow-xs">
+                    <Upload className="w-4 h-4" />
+                    Fazer Upload do Ícone
+                    <input 
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      className="hidden"
+                      onChange={handlePlatformIconUpload}
+                    />
+                  </label>
+
+                  {platformSettings?.platformIconUrl && (
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm("Deseja realmente remover o ícone personalizado? O sistema voltará ao padrão.")) return;
+                        try {
+                          const res = await fetch("/api/saas/settings", {
+                            method: "PUT",
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({ platformIconUrl: null })
                           });
                           if (res.ok) {
                             setPlatformSettings(await res.json());
