@@ -16,6 +16,7 @@ import { AgencyProfile, Company, Voucher } from "./types";
 import { ArrowLeft, Building2, Users, CreditCard, ChevronDown, Check, Loader2 } from "lucide-react";
 import { useAuth } from "./contexts/AuthContext";
 import { Login } from "./components/Login";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -398,63 +399,85 @@ export default function App() {
 
       {/* Main App Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-        {isMasterUser(user) && isMasterMode ? (
-          /* SaaS Master Admin Dashboard */
-          <SaasMasterPanel onEnterAgency={handleEnterAgency} />
-        ) : isLoading || !currentAgency ? (
-          <div className="flex items-center justify-center py-32">
-            <div className="flex flex-col items-center gap-3 text-slate-500">
-              <div className="w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs font-semibold">Carregando dados da agência...</span>
+        <ErrorBoundary fallbackTitle="Falha ao renderizar módulo">
+          {isMasterUser(user) && isMasterMode ? (
+            /* SaaS Master Admin Dashboard */
+            <SaasMasterPanel onEnterAgency={handleEnterAgency} />
+          ) : isLoading ? (
+            <div className="flex items-center justify-center py-32">
+              <div className="flex flex-col items-center gap-3 text-slate-500">
+                <div className="w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs font-semibold">Carregando dados da agência...</span>
+              </div>
             </div>
-          </div>
-        ) : (
-          <>
-            {activeTab === "generator" && (
-              <VoucherGenerator
-                agency={currentAgency}
-                companies={companies}
-                initialVoucher={activeVoucherForEdit}
-                onSaveVoucher={handleSaveVoucher}
-                onNavigateToCompanies={() => setActiveTab("companies")}
-              />
-            )}
+          ) : !currentAgency ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-xs">
+                <div className="w-12 h-12 bg-sky-50 text-sky-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900 mb-2">Nenhuma agência vinculada</h3>
+                <p className="text-xs text-slate-500 mb-6">
+                  Sua conta ({user?.email}) ainda não possui uma agência associada no sistema.
+                </p>
+                {isMasterUser(user) && (
+                  <button
+                    onClick={handleBackToMaster}
+                    className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Acessar Painel Master SaaS
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {activeTab === "generator" && (
+                <VoucherGenerator
+                  agency={currentAgency}
+                  companies={companies}
+                  initialVoucher={activeVoucherForEdit}
+                  onSaveVoucher={handleSaveVoucher}
+                  onNavigateToCompanies={() => setActiveTab("companies")}
+                />
+              )}
 
-            {activeTab === "companies" && (
-              <CompanyManager
-                companies={companies}
-                onAddCompany={handleAddCompany}
-                onUpdateCompany={handleUpdateCompany}
-                onDeleteCompany={handleDeleteCompany}
-                onSelectForVoucher={handleSelectCompanyForVoucher}
-              />
-            )}
+              {activeTab === "companies" && (
+                <CompanyManager
+                  companies={companies}
+                  onAddCompany={handleAddCompany}
+                  onUpdateCompany={handleUpdateCompany}
+                  onDeleteCompany={handleDeleteCompany}
+                  onSelectForVoucher={handleSelectCompanyForVoucher}
+                />
+              )}
 
-            {activeTab === "history" && (
-              <VoucherHistory
-                vouchers={vouchers}
-                companies={companies}
-                onSelectVoucher={handleSelectVoucherFromHistory}
-                onDeleteVoucher={handleDeleteVoucher}
-              />
-            )}
+              {activeTab === "history" && (
+                <VoucherHistory
+                  vouchers={vouchers}
+                  companies={companies}
+                  onSelectVoucher={handleSelectVoucherFromHistory}
+                  onDeleteVoucher={handleDeleteVoucher}
+                />
+              )}
 
-            {activeTab === "subscription" && (
-              <AgencySubscriptionView
-                agency={currentAgency}
-                onOpenTeamModal={() => setIsTeamModalOpen(true)}
-              />
-            )}
+              {activeTab === "subscription" && (
+                <AgencySubscriptionView
+                  agency={currentAgency}
+                  onOpenTeamModal={() => setIsTeamModalOpen(true)}
+                />
+              )}
 
-            {activeTab === "agency" && (
-              <AgencySettings
-                agency={currentAgency}
-                onUpdateAgency={handleUpdateAgency}
-                onAgencyReset={() => loadAgencyData(currentAgency.id)}
-              />
-            )}
-          </>
-        )}
+              {activeTab === "agency" && (
+                <AgencySettings
+                  agency={currentAgency}
+                  onUpdateAgency={handleUpdateAgency}
+                  onAgencyReset={() => loadAgencyData(currentAgency.id)}
+                />
+              )}
+            </>
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Site Footer - Property of RomamiaViagens (No-print, not shown on vouchers) */}
