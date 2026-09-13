@@ -73,11 +73,15 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between h-16 gap-4">
           {/* Logo & Agency Identifier */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center">
-              <img src={logoUrl} alt="AiVoucher" className="h-10 w-auto object-contain" />
-              <div className="hidden h-10 w-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-xs">
-                <Plane className="w-5 h-5 transform -rotate-45" />
-              </div>
+            <div className="flex items-center justify-center gap-3">
+              <img src={logoUrl} alt="Platform Logo" className="h-10 w-auto object-contain" />
+              
+              {!isMasterMode && agency?.logoUrl && (
+                <>
+                  <div className="w-px h-6 bg-slate-200"></div>
+                  <img src={agency.logoUrl} alt={agency.name} className="h-8 w-auto object-contain max-w-[80px]" />
+                </>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-1.5">
