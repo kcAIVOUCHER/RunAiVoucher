@@ -43,20 +43,35 @@ export default function App() {
   // Team Modal state
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
 
-  // Global Platform Settings (Favicon)
+  // Global Platform Settings (Favicon & Mobile App Icon)
   useEffect(() => {
     fetch("/api/saas/settings")
       .then(res => res.json())
       .then(data => {
-        if (data && data.platformLogoUrl) {
-          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-          if (link) {
-            link.href = data.platformLogoUrl;
-          } else {
-            const newLink = document.createElement("link");
-            newLink.rel = "icon";
-            newLink.href = data.platformLogoUrl;
-            document.head.appendChild(newLink);
+        if (data) {
+          const iconUrl = data.platformIconUrl || data.platformLogoUrl;
+          if (iconUrl) {
+            // Update Favicon (Browser Tab)
+            const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+            if (link) {
+              link.href = iconUrl;
+            } else {
+              const newLink = document.createElement("link");
+              newLink.rel = "icon";
+              newLink.href = iconUrl;
+              document.head.appendChild(newLink);
+            }
+
+            // Update Apple Touch Icon (Mobile Shortcut)
+            const appleLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+            if (appleLink) {
+              appleLink.href = iconUrl;
+            } else {
+              const newAppleLink = document.createElement("link");
+              newAppleLink.rel = "apple-touch-icon";
+              newAppleLink.href = iconUrl;
+              document.head.appendChild(newAppleLink);
+            }
           }
         }
       })
