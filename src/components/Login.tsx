@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import { auth } from "../lib/firebase";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
-import { Building2, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
+import { Building2, Mail, Lock, Loader2, ArrowRight, RotateCcw, Check } from "lucide-react";
+import { clearAllClientStorage } from "../contexts/AuthContext";
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearedSuccess, setClearedSuccess] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"login" | "reset">("login");
   const [resetSent, setResetSent] = useState(false);
@@ -22,6 +25,23 @@ export const Login: React.FC = () => {
       })
       .catch(() => {});
   }, []);
+
+  const handleResetStorage = async () => {
+    setClearing(true);
+    try {
+      await clearAllClientStorage();
+      setClearedSuccess(true);
+      setTimeout(() => {
+        setClearedSuccess(false);
+        window.location.reload();
+      }, 1000);
+    } catch (e) {
+      console.error(e);
+      window.location.reload();
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +203,37 @@ export const Login: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* Reset cache/cookies help section for mobile browsers */}
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <p className="text-[11px] text-slate-400 mb-2">
+              Travando ao carregar ou erro de sessão no celular?
+            </p>
+            <button
+              type="button"
+              onClick={handleResetStorage}
+              disabled={clearing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              title="Limpar cookies, cache e tokens locais do navegador"
+            >
+              {clearing ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                  <span>Limpando dados do navegador...</span>
+                </>
+              ) : clearedSuccess ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-700">Dados limpos! Recarregando...</span>
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Limpar cookies e cache do navegador</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
