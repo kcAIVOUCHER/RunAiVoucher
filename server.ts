@@ -1119,14 +1119,6 @@ app.post("/api/parse-voucher", async (req, res) => {
       const isPackage = /pacote|combo multisservi[çc]o|a[ée]reo.*hotel.*carro/i.test(rawText);
       const isHotel = /hotel|pousada|resort|hospedagem|check-in|check-out|bourbon|di[áa]rias/i.test(rawText);
 
-      let serviceType: any = "flight";
-      if (isPackage) serviceType = "package";
-      else if (isCruise) serviceType = "cruise";
-      else if (isTicket) serviceType = "ticket";
-      else if (isInsurance) serviceType = "insurance";
-      else if (isCar) serviceType = "car";
-      else if (isHotel) serviceType = "hotel";
-
       const isGol = /gol/i.test(rawText);
       const isLatam = /latam/i.test(rawText);
       const isAzul = /azul/i.test(rawText);
@@ -1186,7 +1178,7 @@ app.post("/api/parse-voucher", async (req, res) => {
             aircraft: "Airbus A320",
             duration: "1h 10m"
           }
-        ],
+        ] : [],
         hotel: isHotel || isPackage ? {
           hotelName: "Bourbon Curitiba Hotel & Suites",
           address: "Rua Cândido Lopes, 102 - Centro",
