@@ -499,7 +499,7 @@ app.post("/api/saas/agencies", checkMasterAuth, async (req, res) => {
       if (firebaseApiKey) {
         generatedPassword = req.body.password || (Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4) + "!");
         
-        const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseApiKey}`, {
+        const fbRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseApiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -509,7 +509,7 @@ app.post("/api/saas/agencies", checkMasterAuth, async (req, res) => {
           })
         });
         
-        const data = await res.json();
+        const data = await fbRes.json();
         
         if (data.error && data.error.message === "EMAIL_EXISTS") {
           console.log("Firebase Auth User already exists. Using existing user.");
