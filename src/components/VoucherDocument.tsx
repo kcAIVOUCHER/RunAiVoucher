@@ -303,7 +303,7 @@ export const VoucherDocument: React.FC<VoucherDocumentProps> = ({
         </section>
 
         {/* Flight Itinerary */}
-        {(voucher.serviceType === "flight" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.flights && voucher.flights.length > 0 && (
+        {voucher.flights && voucher.flights.length > 0 && (
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-slate-800 font-bold text-sm uppercase tracking-wide">
@@ -416,7 +416,7 @@ export const VoucherDocument: React.FC<VoucherDocumentProps> = ({
         )}
 
         {/* Hotel Booking Section */}
-        {(voucher.serviceType === "hotel" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.hotel && (
+        {voucher.hotel && (
           <section className="border border-slate-200 rounded-lg p-4 bg-slate-50/40 space-y-3">
             <div className="flex items-center justify-between text-slate-800 font-bold text-sm uppercase tracking-wide">
               <div className="flex items-center gap-2">
@@ -481,6 +481,19 @@ export const VoucherDocument: React.FC<VoucherDocumentProps> = ({
                 </div>
               </div>
 
+              {voucher.hotel.guestsNames && voucher.hotel.guestsNames.length > 0 && (
+                <div className="pt-2 border-t border-slate-100 text-xs">
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider mb-1">Hóspedes Registrados no Quarto:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {voucher.hotel.guestsNames.map((guest: string, i: number) => (
+                      <span key={i} className="bg-emerald-50 text-emerald-900 border border-emerald-200 px-2.5 py-0.5 rounded font-medium text-xs">
+                        👤 {guest}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {voucher.hotel.notes && (
                 <p className="text-[11px] text-slate-500 bg-amber-50/70 p-2 rounded border border-amber-200/50 flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
@@ -492,7 +505,7 @@ export const VoucherDocument: React.FC<VoucherDocumentProps> = ({
         )}
 
         {/* Car Rental Booking Section */}
-        {(voucher.serviceType === "car" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.carRental && (
+        {voucher.carRental && (
           <section className="border border-slate-200 rounded-lg p-4 bg-slate-50/40 space-y-3">
             <div className="flex items-center justify-between text-slate-800 font-bold text-sm uppercase tracking-wide">
               <div className="flex items-center gap-2">
@@ -571,7 +584,7 @@ export const VoucherDocument: React.FC<VoucherDocumentProps> = ({
         )}
 
         {/* Travel Insurance Section */}
-        {(voucher.serviceType === "insurance" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.insurance && (
+        {voucher.insurance && (
           <section className="border border-slate-200 rounded-lg p-4 bg-slate-50/40 space-y-3">
             <div className="flex items-center justify-between text-slate-800 font-bold text-sm uppercase tracking-wide">
               <div className="flex items-center gap-2">
@@ -652,7 +665,7 @@ export const VoucherDocument: React.FC<VoucherDocumentProps> = ({
         )}
 
         {/* Tickets & Attractions Section */}
-        {(voucher.serviceType === "ticket" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.ticket && (
+        {voucher.ticket && (
           <section className="border border-slate-200 rounded-lg p-4 bg-slate-50/40 space-y-3">
             <div className="flex items-center justify-between text-slate-800 font-bold text-sm uppercase tracking-wide">
               <div className="flex items-center gap-2">
@@ -713,7 +726,7 @@ export const VoucherDocument: React.FC<VoucherDocumentProps> = ({
         )}
 
         {/* Cruise / Ship Booking Section */}
-        {(voucher.serviceType === "cruise" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.cruise && (
+        {voucher.cruise && (
           <section className="border border-slate-200 rounded-lg p-4 bg-slate-50/40 space-y-3">
             <div className="flex items-center justify-between text-slate-800 font-bold text-sm uppercase tracking-wide">
               <div className="flex items-center gap-2">
@@ -773,7 +786,7 @@ export const VoucherDocument: React.FC<VoucherDocumentProps> = ({
         )}
 
         {/* Transfer Section */}
-        {(voucher.serviceType === "transfer" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.transfer && (
+        {voucher.transfer && (
           <section className="border border-slate-200 rounded-lg p-4 bg-slate-50/40 space-y-3">
             <div className="flex items-center justify-between text-slate-800 font-bold text-sm uppercase tracking-wide">
               <div className="flex items-center gap-2">
