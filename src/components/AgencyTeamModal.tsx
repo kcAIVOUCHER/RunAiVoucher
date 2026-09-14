@@ -88,7 +88,7 @@ export const AgencyTeamModal: React.FC<AgencyTeamModalProps> = ({
         // Write profile to Firestore explicitly using Client SDK 
         // to inherit auth of current Master/Admin
         try {
-          const systemRole = role === "admin" ? "agency_admin" : "agency_user";
+          const systemRole = role === "agency_admin" ? "agency_admin" : "agency_user";
           await setDoc(doc(db, "users", data.id), {
             email,
             role: systemRole,
