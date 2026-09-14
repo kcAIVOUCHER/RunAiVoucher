@@ -218,13 +218,13 @@ export const VoucherDocument: React.FC<VoucherDocumentProps> = ({
             <div className="flex items-center gap-1.5 text-[11px] font-semibold bg-black/20 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
               <span>Serviços:</span>
               <div className="flex items-center gap-1 opacity-95">
-                {voucher.flights && voucher.flights.length > 0 && <Plane className="w-3 h-3" title="Aéreo" />}
-                {voucher.hotel && <Building2 className="w-3 h-3" title="Hotel" />}
-                {voucher.carRental && <Car className="w-3 h-3" title="Carro" />}
-                {voucher.insurance && <Shield className="w-3 h-3" title="Seguro" />}
-                {voucher.ticket && <Ticket className="w-3 h-3" title="Ingressos" />}
-                {voucher.cruise && <Ship className="w-3 h-3" title="Cruzeiro" />}
-                {voucher.transfer && <Bus className="w-3 h-3" title="Transfer" />}
+                {voucher.flights && voucher.flights.length > 0 && <span title="Aéreo"><Plane className="w-3 h-3" /></span>}
+                {voucher.hotel && <span title="Hotel"><Building2 className="w-3 h-3" /></span>}
+                {voucher.carRental && <span title="Carro"><Car className="w-3 h-3" /></span>}
+                {voucher.insurance && <span title="Seguro"><Shield className="w-3 h-3" /></span>}
+                {voucher.ticket && <span title="Ingressos"><Ticket className="w-3 h-3" /></span>}
+                {voucher.cruise && <span title="Cruzeiro"><Ship className="w-3 h-3" /></span>}
+                {voucher.transfer && <span title="Transfer"><Bus className="w-3 h-3" /></span>}
               </div>
             </div>
           </div>
