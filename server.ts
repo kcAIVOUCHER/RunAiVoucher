@@ -1130,8 +1130,23 @@ app.post("/api/parse-voucher", async (req, res) => {
       const isGol = /gol/i.test(rawText);
       const isLatam = /latam/i.test(rawText);
       const isAzul = /azul/i.test(rawText);
+      const hasFlightTerms = isGol || isLatam || isAzul || /voo|bilhete|a[ée]reo|embarque|aeroporto|escala|conex[ãa]o/i.test(rawText);
+
+      const servicesDetectedCount = [hasFlightTerms, isHotel, isCar, isInsurance, isTicket, isCruise].filter(Boolean).length;
+
+      let serviceType: any = "flight";
+      if (servicesDetectedCount > 1 || isPackage) serviceType = "package";
+      else if (isCruise) serviceType = "cruise";
+      else if (isTicket) serviceType = "ticket";
+      else if (isInsurance) serviceType = "insurance";
+      else if (isCar) serviceType = "car";
+      else if (isHotel) serviceType = "hotel";
+      else if (hasFlightTerms) serviceType = "flight";
+
       const airline = isLatam ? "LATAM Airlines" : isGol ? "GOL Linhas Aéreas" : isAzul ? "Azul Linhas Aéreas" : "Companhia Aérea";
       const airlineCode = isLatam ? "LA" : isGol ? "G3" : isAzul ? "AD" : "XX";
+
+      const includeFlights = serviceType === "flight" || serviceType === "package" || hasFlightTerms;
 
       return {
         pnr: pnrMatch ? pnrMatch[1].toUpperCase() : "BR" + Math.floor(1000 + Math.random() * 9000),
@@ -1146,7 +1161,7 @@ app.post("/api/parse-voucher", async (req, res) => {
             seat: "12A"
           }
         ],
-        flights: isCar || isInsurance || isTicket || isCruise || isHotel ? [] : [
+        flights: includeFlights ? [
           {
             airline,
             airlineCode,
@@ -1270,9 +1285,13 @@ app.post("/api/parse-voucher", async (req, res) => {
       }
     });
 
-    const systemPrompt = `Você é um extrator de dados de comprovantes de viagem (aéreo, hotel, carro, seguro, ingressos, cruzeiro).
+    const systemPrompt = `Você é o AiVoucher Intelligence Engine, especialista em consolidação de viagens e emissão de vouchers de turismo no padrão A4.
 
-Extraia os dados de forma precisa e retorne APENAS um JSON válido seguindo este esquema:
+O usuário pode anexar 1 OU MÚLTIPLOS DOCUMENTOS/ARQUIVOS (exemplo: bilhete aéreo de ida e volta, confirmação de hotel/hospedagem, locação de carro, apólice de seguro viagem, ingressos de parques/atrações, cruzeiro, traslados).
+
+SEU OBJETIVO É LER TODOS OS DOCUMENTOS CONJUNTAMENTE E UNIFICAR TUDO NO MESMO VOUCHER COMO UM PACOTE COMPLETO CONSOLIDADO.
+
+Retorne APENAS um JSON válido estritamente no esquema abaixo:
 
 {
   "pnr": "string",
@@ -1289,18 +1308,35 @@ Extraia os dados de forma precisa e retorne APENAS um JSON válido seguindo este
   "notes": "string"
 }
 
-REGRAS DE EXTRAÇÃO:
-- Se não houver City, extraia a partir do aeroporto.
-- Preencha null em campos não aplicáveis.
-- Use float para valores numéricos (sem R$ ou vírgulas).
-- CALCULE A DURAÇÃO DO VOO (Saída - Chegada, ajuste fuso) se não estiver explícita. JAMAIS deixe vazio.
-- Formate a bagagem: Bagagem: 🎒 Item pessoal + 🧳 Mala de bordo (10kg) [+ 🧳 Mala despachada]. APENAS itens inclusos.
-- Retorne APENAS o JSON puro. Sem markdown, sem explicações.`;
+DIRETRIZES CRÍTICAS DE CONSOLIDAÇÃO (PACOTE COMPLETO):
+1. SE HOUVER MÚLTIPLOS SERVIÇOS (ex: aéreo + hotel, aéreo + carro, hotel + seguro, etc.) OU MÚLTIPLOS ARQUIVOS, DEFINE OBRIGATORIAMENTE "serviceType": "package".
+2. UNIFICAÇÃO DE PASSAGEIROS E HÓSPEDES:
+   - O bilhete aéreo pode ter X passageiros, e a reserva de hotel pode ter outras X pessoas (ou hóspedes adicionais, crianças, acompanhantes).
+   - JUNTE TODOS OS NOMES DE VIAJANTES na lista "passengers" do JSON, sem duplicar nomes!
+   - Quem tiver bilhete aéreo / assento, preencha os campos correspondentes ("ticketNumber", "seat").
+   - Quem estiver apenas no hotel (ou seguro/carro), inclua também na lista "passengers" com o nome completo e documento (se houver).
+   - No objeto "hotel.guestsNames", liste TODOS os hóspedes da acomodação.
+   - No objeto "carRental.driverName", informe o condutor principal da locação.
+   - No objeto "insurance.insuredNames", liste todos os nomes segurados.
+3. CONSOLIDAÇÃO DE VOOS ("flights"):
+   - Se houver arquivos separados de ida e volta, ou múltiplos trechos/conexões, inclua TODOS no array "flights" em ordem cronológica de embarque.
+   - Duração do voo: Calcule sempre (Horário de Chegada - Horário de Saída, considerando fuso). JAMAIS deixe vazio.
+   - Bagagem: Descreva detalhadamente o que está incluso (ex: "🎒 1 Item pessoal + 🧳 1 Mala de bordo até 10kg").
+4. CONSOLIDAÇÃO DE DEMAIS SERVIÇOS:
+   - Se houver hotel, preencha o objeto "hotel" completo.
+   - Se houver carro alugado, preencha o objeto "carRental" completo.
+   - Se houver seguro viagem, preencha o objeto "insurance" completo (com telefone 24h de emergência).
+   - Se houver ingressos, preencha "ticket".
+   - Se houver cruzeiro ou transfer, preencha os respectivos objetos.
+   - Deixe como null apenas os serviços que NÃO constarem nos documentos enviados.
+5. VALORES E TARIFAS ("pricing"):
+   - Se houver preços e taxas nos documentos, SOME as tarifas e taxas de todos os serviços para fornecer o total consolidado do pacote.
+6. RETORNE EXCLUSIVAMENTE O JSON PURO, sem markdown (\`\`\`json) e sem introduções ou comentários.`;
 
     const parts: any[] = [];
 
     if (files && files.length > 0) {
-      for (const file of files) {
+      files.forEach((file: any, index: number) => {
         const cleanBase64 = file.base64 ? file.base64.replace(/^data:[^;]+;base64,/, "") : "";
         if (cleanBase64) {
           let resolvedMime = file.mimeType || "application/pdf";
@@ -1314,13 +1350,16 @@ REGRAS DE EXTRAÇÃO:
             }
           }
           parts.push({
+            text: `=== DOCUMENTO ANEXADO ${index + 1} de ${files.length}: "${file.name || `Comprovante_${index + 1}`}" ===`
+          });
+          parts.push({
             inlineData: {
               data: cleanBase64,
               mimeType: resolvedMime
             }
           });
         }
-      }
+      });
     } else if (fileBase64) {
       const cleanBase64 = fileBase64.replace(/^data:[^;]+;base64,/, "");
       if (cleanBase64) {
@@ -1343,15 +1382,14 @@ REGRAS DE EXTRAÇÃO:
       }
     }
 
-    if (text && text.trim()) {
-      parts.push({
-        text: `Aqui está o conteúdo do bilhete/e-mail/GDS ou observações adicionais para extração:\n\n${text.trim()}`
-      });
-    } else {
-      parts.push({
-        text: "Analise minuciosamente este documento de viagem/bilhete anexo e extraia todos os dados estruturados conforme o schema JSON solicitado."
-      });
-    }
+    const filesCount = (files && files.length > 0) ? files.length : (fileBase64 ? 1 : 0);
+    const instructionMessage = filesCount > 1
+      ? `ATENÇÃO: Foram enviados ${filesCount} arquivos/comprovantes de viagem distintos. Analise TODOS em conjunto e consolide os dados em um único PACOTE COMPLETO ('serviceType': 'package'). Junte todos os passageiros e hóspedes na lista 'passengers' sem duplicar, inclua todos os voos em 'flights', a reserva do hotel em 'hotel', carro em 'carRental' e seguro em 'insurance'.\n\n${text && text.trim() ? `Observações adicionais fornecidas:\n${text.trim()}` : ""}`
+      : `Analise minuciosamente este comprovante de viagem e extraia com precisão cirúrgica todos os dados estruturados conforme o schema JSON solicitado.\n\n${text && text.trim() ? `Observações adicionais fornecidas:\n${text.trim()}` : ""}`;
+
+    parts.push({
+      text: instructionMessage
+    });
 
     try {
       const modelsToTry = ["gemini-3.8-flash", "gemini-1.5-flash", "gemini-flash-lite-latest"];
