@@ -19,7 +19,7 @@ import { Login } from "./components/Login";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, clearSessionAndStorage } = useAuth();
 
   const isMasterUser = (u: any): boolean => {
     if (!u) return false;
@@ -32,6 +32,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>("generator");
   const [isMasterMode, setIsMasterMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Safety timer so agency loading never hangs forever on mobile
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   // Agency data state
   const [currentAgency, setCurrentAgency] = useState<AgencyProfile | null>(null);
@@ -355,10 +365,20 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-slate-400">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <p className="font-medium text-sm animate-pulse">Carregando sistema...</p>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4 text-slate-500 max-w-xs text-center">
+          <Loader2 className="w-9 h-9 animate-spin text-slate-900" />
+          <div>
+            <p className="font-bold text-slate-800 text-sm">Carregando AiVoucher...</p>
+            <p className="text-xs text-slate-400 mt-0.5">Validando sessão no navegador</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => clearSessionAndStorage()}
+            className="mt-3 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 hover:text-red-600 text-slate-600 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            Demorando no celular? Toque para resetar e logar
+          </button>
         </div>
       </div>
     );
@@ -460,9 +480,19 @@ export default function App() {
             <SaasMasterPanel onEnterAgency={handleEnterAgency} />
           ) : isLoading ? (
             <div className="flex items-center justify-center py-32">
-              <div className="flex flex-col items-center gap-3 text-slate-500">
+              <div className="flex flex-col items-center gap-3 text-slate-500 text-center max-w-xs">
                 <div className="w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-semibold">Carregando dados da agência...</span>
+                <span className="text-xs font-semibold text-slate-700">Carregando dados da agência...</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoading(false);
+                    clearSessionAndStorage();
+                  }}
+                  className="mt-2 text-xs text-slate-400 hover:text-red-600 underline font-medium cursor-pointer"
+                >
+                  Demorando no celular? Limpar dados e re-logar
+                </button>
               </div>
             </div>
           ) : !currentAgency ? (
