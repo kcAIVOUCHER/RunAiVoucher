@@ -188,6 +188,9 @@ export interface HotelBooking {
   checkOutTime?: string;
   nights?: number;
   roomType?: string;
+  roomCategory?: string;
+  roomsCount?: number;
+  guestsCount?: number;
   mealPlan?: string;
   confirmationCode?: string;
   guestsNames?: string[];
@@ -196,60 +199,70 @@ export interface HotelBooking {
 
 export interface CarRentalBooking {
   rentalCompany: string; // Localiza, Movida, Avis, Hertz, Alamo
-  confirmationCode: string;
-  carModelOrCategory: string; // ex: Sedan Automático Grupo C (Onix Plus ou similar)
-  pickupLocation: string; // ex: Balcão Aeroporto Guarulhos (GRU) - Terminal 2
-  pickupDate: string;
-  pickupTime: string;
-  dropoffLocation: string;
-  dropoffDate: string;
-  dropoffTime: string;
-  driverName: string;
+  confirmationCode?: string;
+  carModelOrCategory?: string; // ex: Sedan Automático Grupo C (Onix Plus ou similar)
+  carModel?: string;
+  carCategory?: string;
+  pickupLocation?: string; // ex: Balcão Aeroporto Guarulhos (GRU) - Terminal 2
+  pickupDate?: string;
+  pickupTime?: string;
+  pickupDateTime?: string;
+  dropoffLocation?: string;
+  dropoffDate?: string;
+  dropoffTime?: string;
+  dropoffDateTime?: string;
+  driverName?: string;
   driverDocument?: string;
   includedCoverage?: string; // ex: Proteção Completa LDW/CDW, Quilometragem Livre
+  insuranceIncluded?: string;
   notes?: string;
 }
 
 export interface InsuranceBooking {
   provider: string; // ex: Assist Card, GTA, Universal Assistance, Affinity
-  policyNumber: string; // Número da Apólice / Bilhete
-  planName: string; // ex: Internacional Europa Especial 60K
-  startDate: string;
-  endDate: string;
-  medicalCoverage: string; // ex: USD 60.000 ou R$ 150.000
+  insurerName?: string;
+  policyNumber?: string; // Número da Apólice / Bilhete
+  planName?: string; // ex: Internacional Europa Especial 60K
+  startDate?: string;
+  endDate?: string;
+  coverageStart?: string;
+  coverageEnd?: string;
+  destinationArea?: string;
+  medicalCoverage?: string; // ex: USD 60.000 ou R$ 150.000
   covidCoverage?: string;
   baggageCoverage?: string; // ex: USD 1.200 suplementar
-  emergencyPhone24h: string; // Telefone e WhatsApp 24h para emergências médicas no exterior
-  insuredNames: string[];
+  emergencyPhone24h?: string; // Telefone e WhatsApp 24h para emergências médicas no exterior
+  emergencyPhone?: string;
+  insuredNames?: string[];
   notes?: string;
 }
 
 export interface TicketBooking {
   attractionName: string; // ex: Magic Kingdom Park - Walt Disney World, Tour Coliseu & Vaticano
-  supplierOrPark: string; // ex: Disney Destinations, Universal, Civitatis
-  ticketType: string; // ex: Ingresso Adulto 1 Dia, Hopper Plus, VIP FastPass
-  ticketNumberOrCode: string;
-  date: string;
+  supplierOrPark?: string; // ex: Disney Destinations, Universal, Civitatis
+  ticketType?: string; // ex: Ingresso Adulto 1 Dia, Hopper Plus, VIP FastPass
+  ticketNumberOrCode?: string;
+  date?: string;
   time?: string;
-  locationOrAddress: string;
-  passengersOrHolders: string[];
+  locationOrAddress?: string;
+  passengersOrHolders?: string[];
   importantInstructions?: string; // ex: Apresentar voucher na catraca
 }
 
 export interface CruiseBooking {
   cruiseLine: string; // ex: MSC Cruzeiros, Costa Cruzeiros, Royal Caribbean
   shipName: string; // ex: MSC Grandiosa
-  bookingNumber: string;
-  cabinNumber: string; // ex: Cabine 11042
-  cabinCategory: string; // ex: Varanda Fantastica com Vista para o Mar
-  departurePort: string; // ex: Porto de Santos - SP
-  departureDate: string;
-  departureTime: string;
-  arrivalPort: string; // ex: Porto de Santos - SP
-  arrivalDate: string;
-  itinerarySummary: string; // ex: Santos > Búzios > Ilha Grande > Santos (4 noites)
+  bookingNumber?: string;
+  cabinNumber?: string; // ex: Cabine 11042
+  cabinCategory?: string; // ex: Varanda Fantastica com Vista para o Mar
+  departurePort?: string; // ex: Porto de Santos - SP
+  departureDate?: string;
+  departureTime?: string;
+  arrivalPort?: string; // ex: Porto de Santos - SP
+  arrivalDate?: string;
+  itinerarySummary?: string; // ex: Santos > Búzios > Ilha Grande > Santos (4 noites)
   mealPlan?: string; // ex: Pacote Easy Bebidas & Refeições nos Restaurantes Principais
-  passengers: string[];
+  passengers?: string[];
 }
 
 export interface TransferBooking {
