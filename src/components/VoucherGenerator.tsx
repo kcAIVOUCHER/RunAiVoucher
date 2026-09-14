@@ -194,7 +194,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
     const newFiles = Array.from(files);
     
     Promise.all(
-      newFiles.map((file) => {
+      newFiles.map((file: File) => {
         return new Promise<{name: string; base64: string; mimeType: string;}>((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => {
@@ -248,6 +248,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
       }
       if (selectedFiles.length > 0) {
         payload.files = selectedFiles.map(f => ({
+          name: f.name,
           base64: f.base64,
           mimeType: f.mimeType
         }));
@@ -268,6 +269,9 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
       const extracted = result.data;
 
       // Update current voucher with extracted data, keeping active company defaults
+      let detectedIsPackage = false;
+      let finalSummaryInfo = "";
+
       setCurrentVoucher((prev) => {
         const flights: FlightSegment[] = (extracted.flights || []).map((f: any, idx: number) => ({
           id: `fl-${Date.now()}-${idx}`,
@@ -296,15 +300,152 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
           duration: f.duration || ""
         }));
 
-        const passengers: Passenger[] = (extracted.passengers || []).map((p: any, idx: number) => ({
-          id: `pax-${Date.now()}-${idx}`,
-          name: p.name || "PASSAGEIRO",
-          ticketNumber: p.ticketNumber || "",
-          document: p.document || "",
-          birthDate: p.birthDate || "",
-          loyaltyNumber: p.loyaltyNumber || "",
-          seat: p.seat || ""
-        }));
+        // Consolidação Inteligente de Viajantes (Aéreo + Hotel + Carro + Seguro)
+        const consolidatedPassengers: Passenger[] = [];
+        const seenNames = new Set<string>();
+
+        const cleanNormalize = (nameStr: string) =>
+          nameStr.trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+
+        // 1. Passageiros explícitos do aéreo ou extração principal
+        if (Array.isArray(extracted.passengers)) {
+          extracted.passengers.forEach((p: any, idx: number) => {
+            if (p && p.name && p.name.trim()) {
+              const norm = cleanNormalize(p.name);
+              if (!seenNames.has(norm)) {
+                seenNames.add(norm);
+                consolidatedPassengers.push({
+                  id: `pax-${Date.now()}-${idx}`,
+                  name: p.name.trim().toUpperCase(),
+                  ticketNumber: p.ticketNumber || "",
+                  document: p.document || "",
+                  birthDate: p.birthDate || "",
+                  loyaltyNumber: p.loyaltyNumber || "",
+                  seat: p.seat || ""
+                });
+              }
+            }
+          });
+        }
+
+        // 2. Hóspedes do hotel (adicionar à lista de viajantes se não constavam no aéreo)
+        if (extracted.hotel?.guestsNames && Array.isArray(extracted.hotel.guestsNames)) {
+          extracted.hotel.guestsNames.forEach((g: string, idx: number) => {
+            if (g && typeof g === "string" && g.trim()) {
+              const norm = cleanNormalize(g);
+              const alreadyExists = Array.from(seenNames).some(
+                s => s === norm || (s.length > 5 && norm.length > 5 && (s.includes(norm) || norm.includes(s)))
+              );
+              if (!alreadyExists) {
+                seenNames.add(norm);
+                consolidatedPassengers.push({
+                  id: `pax-${Date.now()}-htl-${idx}`,
+                  name: g.trim().toUpperCase(),
+                  ticketNumber: "",
+                  document: "",
+                  birthDate: "",
+                  loyaltyNumber: "",
+                  seat: ""
+                });
+              }
+            }
+          });
+        }
+
+        // 3. Condutor de locação de veículo
+        if (extracted.carRental?.driverName && typeof extracted.carRental.driverName === "string" && extracted.carRental.driverName.trim()) {
+          const norm = cleanNormalize(extracted.carRental.driverName);
+          const alreadyExists = Array.from(seenNames).some(
+            s => s === norm || (s.length > 5 && norm.length > 5 && (s.includes(norm) || norm.includes(s)))
+          );
+          if (!alreadyExists) {
+            seenNames.add(norm);
+            consolidatedPassengers.push({
+              id: `pax-${Date.now()}-car-0`,
+              name: extracted.carRental.driverName.trim().toUpperCase(),
+              ticketNumber: "",
+              document: extracted.carRental.driverDocument || "Condutor",
+              birthDate: "",
+              loyaltyNumber: "",
+              seat: ""
+            });
+          }
+        }
+
+        // 4. Segurados da apólice de seguro viagem
+        if (extracted.insurance?.insuredNames && Array.isArray(extracted.insurance.insuredNames)) {
+          extracted.insurance.insuredNames.forEach((ins: string, idx: number) => {
+            if (ins && typeof ins === "string" && ins.trim()) {
+              const norm = cleanNormalize(ins);
+              const alreadyExists = Array.from(seenNames).some(
+                s => s === norm || (s.length > 5 && norm.length > 5 && (s.includes(norm) || norm.includes(s)))
+              );
+              if (!alreadyExists) {
+                seenNames.add(norm);
+                consolidatedPassengers.push({
+                  id: `pax-${Date.now()}-ins-${idx}`,
+                  name: ins.trim().toUpperCase(),
+                  ticketNumber: "",
+                  document: "",
+                  birthDate: "",
+                  loyaltyNumber: "",
+                  seat: ""
+                });
+              }
+            }
+          });
+        }
+
+        // 5. Titulares de ingressos/atrações
+        if (extracted.ticket?.passengersOrHolders && Array.isArray(extracted.ticket.passengersOrHolders)) {
+          extracted.ticket.passengersOrHolders.forEach((h: string, idx: number) => {
+            if (h && typeof h === "string" && h.trim()) {
+              const norm = cleanNormalize(h);
+              const alreadyExists = Array.from(seenNames).some(
+                s => s === norm || (s.length > 5 && norm.length > 5 && (s.includes(norm) || norm.includes(s)))
+              );
+              if (!alreadyExists) {
+                seenNames.add(norm);
+                consolidatedPassengers.push({
+                  id: `pax-${Date.now()}-tkt-${idx}`,
+                  name: h.trim().toUpperCase(),
+                  ticketNumber: "",
+                  document: "",
+                  birthDate: "",
+                  loyaltyNumber: "",
+                  seat: ""
+                });
+              }
+            }
+          });
+        }
+
+        // 6. Passageiros de cruzeiro
+        if (extracted.cruise?.passengers && Array.isArray(extracted.cruise.passengers)) {
+          extracted.cruise.passengers.forEach((cp: string, idx: number) => {
+            if (cp && typeof cp === "string" && cp.trim()) {
+              const norm = cleanNormalize(cp);
+              const alreadyExists = Array.from(seenNames).some(
+                s => s === norm || (s.length > 5 && norm.length > 5 && (s.includes(norm) || norm.includes(s)))
+              );
+              if (!alreadyExists) {
+                seenNames.add(norm);
+                consolidatedPassengers.push({
+                  id: `pax-${Date.now()}-cru-${idx}`,
+                  name: cp.trim().toUpperCase(),
+                  ticketNumber: "",
+                  document: "",
+                  birthDate: "",
+                  loyaltyNumber: "",
+                  seat: ""
+                });
+              }
+            }
+          });
+        }
+
+        const finalPassengers: Passenger[] =
+          consolidatedPassengers.length > 0 ? consolidatedPassengers : prev.passengers;
 
         const pricing = {
           currency: extracted.pricing?.currency || "BRL",
@@ -315,95 +456,80 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
           total: Number(extracted.pricing?.total) || 0
         };
 
-        // Recalculate total if extracted fare exists but total was 0
         if (pricing.total === 0 && (pricing.fare > 0 || pricing.taxes > 0)) {
           pricing.total = pricing.fare + pricing.taxes + pricing.serviceFee + pricing.otherFees;
         }
 
-        // Determine accurate service type based on extracted data
-        const detectedServiceType: ServiceType =
-          extracted.serviceType ||
-          (extracted.carRental ? "car" :
-           extracted.hotel ? "hotel" :
-           extracted.insurance ? "insurance" :
-           extracted.ticket ? "ticket" :
-           extracted.cruise ? "cruise" :
-           extracted.transfer ? "transfer" :
-           flights.length > 0 ? "flight" :
-           "flight");
+        // Checagem precisa de todos os serviços que contêm dados reais
+        const hasFlights = flights.length > 0;
+        const hasHotel = Boolean(extracted.hotel && (extracted.hotel.hotelName || extracted.hotel.checkInDate || extracted.hotel.confirmationCode));
+        const hasCar = Boolean(extracted.carRental && (extracted.carRental.rentalCompany || extracted.carRental.carModelOrCategory || extracted.carRental.confirmationCode));
+        const hasInsurance = Boolean(extracted.insurance && (extracted.insurance.provider || extracted.insurance.policyNumber || extracted.insurance.planName));
+        const hasTicket = Boolean(extracted.ticket && (extracted.ticket.attractionName || extracted.ticket.ticketNumberOrCode));
+        const hasCruise = Boolean(extracted.cruise && (extracted.cruise.cruiseLine || extracted.cruise.shipName || extracted.cruise.bookingNumber));
+        const hasTransfer = Boolean(extracted.transfer && (extracted.transfer.pickupLocation || extracted.transfer.serviceType));
 
-        // Determine passenger list, prioritizing driver or guests if passengers array is empty
-        let finalPassengers: Passenger[] = passengers;
-        if (finalPassengers.length === 0) {
-          if (extracted.carRental?.driverName) {
-            finalPassengers = [
-              {
-                id: `pax-${Date.now()}-0`,
-                name: extracted.carRental.driverName,
-                ticketNumber: extracted.carRental.confirmationCode || "",
-                document: extracted.carRental.driverDocument || "Condutor",
-                birthDate: "",
-                loyaltyNumber: "",
-                seat: ""
-              }
-            ];
-          } else if (extracted.hotel?.guestsNames && extracted.hotel.guestsNames.length > 0) {
-            finalPassengers = extracted.hotel.guestsNames.map((g: string, idx: number) => ({
-              id: `pax-${Date.now()}-${idx}`,
-              name: g,
-              ticketNumber: extracted.hotel.confirmationCode || "",
-              document: "",
-              birthDate: "",
-              loyaltyNumber: "",
-              seat: ""
-            }));
-          } else if (extracted.insurance?.insuredNames && extracted.insurance.insuredNames.length > 0) {
-            finalPassengers = extracted.insurance.insuredNames.map((n: string, idx: number) => ({
-              id: `pax-${Date.now()}-${idx}`,
-              name: n,
-              ticketNumber: extracted.insurance.policyNumber || "",
-              document: "",
-              birthDate: "",
-              loyaltyNumber: "",
-              seat: ""
-            }));
-          } else {
-            finalPassengers = prev.passengers;
-          }
+        const activeServicesCount = [hasFlights, hasHotel, hasCar, hasInsurance, hasTicket, hasCruise, hasTransfer].filter(Boolean).length;
+
+        // Se houver mais de um serviço ou mais de 1 arquivo enviado, é um Pacote Completo consolidado
+        const isPackage = activeServicesCount > 1 || selectedFiles.length > 1 || extracted.serviceType === "package" || extracted.serviceType === "combo";
+        detectedIsPackage = isPackage;
+
+        let detectedServiceType: ServiceType = "flight";
+        if (isPackage) {
+          detectedServiceType = "package";
+        } else if (hasHotel) {
+          detectedServiceType = "hotel";
+        } else if (hasCar) {
+          detectedServiceType = "car";
+        } else if (hasInsurance) {
+          detectedServiceType = "insurance";
+        } else if (hasTicket) {
+          detectedServiceType = "ticket";
+        } else if (hasCruise) {
+          detectedServiceType = "cruise";
+        } else if (hasTransfer) {
+          detectedServiceType = "transfer";
+        } else if (hasFlights) {
+          detectedServiceType = "flight";
         }
 
         const finalPnr =
           extracted.pnr ||
-          extracted.carRental?.confirmationCode ||
           extracted.hotel?.confirmationCode ||
+          extracted.carRental?.confirmationCode ||
           extracted.insurance?.policyNumber ||
           extracted.ticket?.ticketNumberOrCode ||
           prev.pnr;
 
-        // Clean out irrelevant test/mock data from other services when importing a specific service
-        const isPackage = detectedServiceType === "package" || detectedServiceType === "combo";
+        finalSummaryInfo = `${hasFlights ? `${flights.length} voo(s)` : ""}${hasHotel ? `, Hotel ${extracted.hotel.hotelName || ""}` : ""}${hasCar ? ", Aluguel de Carro" : ""}${hasInsurance ? ", Seguro Viagem" : ""} (${finalPassengers.length} viajante(s) no total)`;
 
         return {
           ...prev,
           pnr: finalPnr,
           serviceType: detectedServiceType,
           passengers: finalPassengers,
-          // CRITICAL: If importing a car rental, hotel, etc., NEVER retain previous mock flight segments!
-          flights: (isPackage || detectedServiceType === "flight") ? flights : [],
-          hotel: (isPackage || detectedServiceType === "hotel") ? (extracted.hotel || null) : null,
-          carRental: (isPackage || detectedServiceType === "car") ? (extracted.carRental || null) : null,
-          insurance: (isPackage || detectedServiceType === "insurance") ? (extracted.insurance || null) : null,
-          ticket: (isPackage || detectedServiceType === "ticket") ? (extracted.ticket || null) : null,
-          cruise: (isPackage || detectedServiceType === "cruise") ? (extracted.cruise || null) : null,
-          transfer: (isPackage || detectedServiceType === "transfer") ? (extracted.transfer || null) : null,
+          // NUNCA descarta serviços que foram extraídos com sucesso!
+          flights: hasFlights ? flights : (isPackage ? [] : (detectedServiceType === "flight" ? flights : [])),
+          hotel: hasHotel ? extracted.hotel : (isPackage ? (extracted.hotel || null) : (detectedServiceType === "hotel" ? extracted.hotel : null)),
+          carRental: hasCar ? extracted.carRental : (isPackage ? (extracted.carRental || null) : (detectedServiceType === "car" ? extracted.carRental : null)),
+          insurance: hasInsurance ? extracted.insurance : (isPackage ? (extracted.insurance || null) : (detectedServiceType === "insurance" ? extracted.insurance : null)),
+          ticket: hasTicket ? extracted.ticket : (isPackage ? (extracted.ticket || null) : (detectedServiceType === "ticket" ? extracted.ticket : null)),
+          cruise: hasCruise ? extracted.cruise : (isPackage ? (extracted.cruise || null) : (detectedServiceType === "cruise" ? extracted.cruise : null)),
+          transfer: hasTransfer ? extracted.transfer : (isPackage ? (extracted.transfer || null) : (detectedServiceType === "transfer" ? extracted.transfer : null)),
           pricing: pricing.total > 0 ? pricing : prev.pricing,
-          notes: extracted.notes || ""
+          notes: extracted.notes || prev.notes || ""
         };
       });
 
       setIsVoucherReady(true);
       setCurrentStageIndex(CAPTURE_STAGES.length - 1);
-      setGeminiSuccessMsg("Dados extraídos e preenchidos com sucesso pelo AiVoucher Engine!");
+
+      if (detectedIsPackage) {
+        setGeminiSuccessMsg(`✨ Pacote completo consolidado com sucesso no mesmo voucher! ${finalSummaryInfo}`);
+      } else {
+        setGeminiSuccessMsg("Dados extraídos e preenchidos com sucesso pelo AiVoucher Engine!");
+      }
 
       if (result.warning) {
         setGeminiWarningMsg(result.warning);
