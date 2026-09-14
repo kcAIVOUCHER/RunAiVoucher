@@ -464,8 +464,7 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
         </section>
 
         {/* FLIGHT ITINERARY SECTION */}
-        {(voucher.serviceType === "flight" || voucher.serviceType === "package" || voucher.serviceType === "combo") &&
-          voucher.flights &&
+        {voucher.flights &&
           voucher.flights.length > 0 && (
             <section style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -635,7 +634,7 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
           )}
 
         {/* HOTEL SECTION (IF PRESENT) */}
-        {(voucher.serviceType === "hotel" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.hotel && (
+        {voucher.hotel && (
           <section
             style={{
               border: "1px solid #e2e8f0",
@@ -683,15 +682,28 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
               </div>
 
               <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#334155", paddingTop: "4px", borderTop: "1px solid #f1f5f9" }}>
-                <span><strong>Quarto:</strong> {voucher.hotel.roomCategory || "Standard"}</span>
-                <span><strong>Acomodação:</strong> {voucher.hotel.roomsCount || 1} Quarto(s) • {voucher.hotel.guestsCount || 1} Hóspede(s)</span>
+                <span><strong>Quarto:</strong> {voucher.hotel.roomCategory || voucher.hotel.roomType || "Standard"}</span>
+                <span><strong>Acomodação:</strong> {voucher.hotel.roomsCount || 1} Quarto(s) • {voucher.hotel.guestsCount || voucher.hotel.guestsNames?.length || 1} Hóspede(s)</span>
               </div>
+
+              {voucher.hotel.guestsNames && voucher.hotel.guestsNames.length > 0 && (
+                <div style={{ paddingTop: "6px", borderTop: "1px dashed #e2e8f0", fontSize: "11px" }}>
+                  <span style={{ color: "#64748b", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Hóspedes Registrados:</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                    {voucher.hotel.guestsNames.map((guest: string, i: number) => (
+                      <span key={i} style={{ backgroundColor: "#f1f5f9", color: "#1e293b", padding: "2px 6px", borderRadius: "4px", fontWeight: 600 }}>
+                        👤 {guest}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}
 
         {/* CAR RENTAL SECTION (IF PRESENT) */}
-        {(voucher.serviceType === "car" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.carRental && (
+        {voucher.carRental && (
           <section style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "14px 16px", backgroundColor: "#f8fafc" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
@@ -711,9 +723,9 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <h3 style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a", margin: 0 }}>
-                    {voucher.carRental.rentalCompany} • {voucher.carRental.carModel || voucher.carRental.carCategory}
+                    {voucher.carRental.rentalCompany} • {voucher.carRental.carModel || voucher.carRental.carCategory || voucher.carRental.carModelOrCategory}
                   </h3>
-                  <p style={{ fontSize: "11px", color: "#64748b", margin: "2px 0 0 0" }}>Categoria / Grupo: {voucher.carRental.carCategory}</p>
+                  <p style={{ fontSize: "11px", color: "#64748b", margin: "2px 0 0 0" }}>Categoria / Grupo: {voucher.carRental.carCategory || voucher.carRental.carModelOrCategory}</p>
                 </div>
                 {voucher.carRental.insuranceIncluded && (
                   <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46", backgroundColor: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
@@ -726,12 +738,12 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
                 <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Retirada</span>
                   <strong style={{ color: "#0f172a" }}>{voucher.carRental.pickupLocation}</strong>
-                  <div style={{ color: "#475569" }}>{voucher.carRental.pickupDateTime}</div>
+                  <div style={{ color: "#475569" }}>{voucher.carRental.pickupDateTime || `${voucher.carRental.pickupDate || ""} ${voucher.carRental.pickupTime || ""}`}</div>
                 </div>
                 <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Devolução</span>
                   <strong style={{ color: "#0f172a" }}>{voucher.carRental.dropoffLocation}</strong>
-                  <div style={{ color: "#475569" }}>{voucher.carRental.dropoffDateTime}</div>
+                  <div style={{ color: "#475569" }}>{voucher.carRental.dropoffDateTime || `${voucher.carRental.dropoffDate || ""} ${voucher.carRental.dropoffTime || ""}`}</div>
                 </div>
               </div>
             </div>
@@ -739,7 +751,7 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
         )}
 
         {/* INSURANCE SECTION (IF PRESENT) */}
-        {(voucher.serviceType === "insurance" || voucher.serviceType === "package" || voucher.serviceType === "combo") && voucher.insurance && (
+        {voucher.insurance && (
           <section style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "14px 16px", backgroundColor: "#f8fafc" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
@@ -766,6 +778,67 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
                   <span style={{ color: "#059669", fontWeight: 800, fontFamily: "monospace", fontSize: "13px" }}>{voucher.insurance.emergencyPhone}</span>
                 </div>
               )}
+            </div>
+          </section>
+        )}
+
+        {/* TICKETS & ATTRACTIONS SECTION */}
+        {voucher.ticket && (
+          <section style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "14px 16px", backgroundColor: "#f8fafc" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.5">
+                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                </svg>
+                Ingresso / Passeio / Atração
+              </div>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "#7e22ce", backgroundColor: "#f3e8ff", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
+                Código: {voucher.ticket.ticketNumberOrCode}
+              </span>
+            </div>
+            <div style={{ backgroundColor: "#ffffff", padding: "10px 14px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <strong style={{ fontSize: "14px", color: "#0f172a" }}>{voucher.ticket.attractionName}</strong>
+                  {voucher.ticket.supplierOrPark && <span style={{ color: "#64748b", marginLeft: "6px" }}>({voucher.ticket.supplierOrPark})</span>}
+                </div>
+                <span style={{ backgroundColor: "#fdf4ff", color: "#a21caf", border: "1px solid #f5d0fe", padding: "2px 8px", borderRadius: "4px", fontWeight: 700, fontSize: "11px" }}>
+                  {voucher.ticket.ticketType}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "16px", color: "#475569" }}>
+                <span><strong>Data/Hora:</strong> {voucher.ticket.date} {voucher.ticket.time ? `às ${voucher.ticket.time}` : ""}</span>
+                {voucher.ticket.locationOrAddress && <span><strong>Local:</strong> {voucher.ticket.locationOrAddress}</span>}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* CRUISE SECTION */}
+        {voucher.cruise && (
+          <section style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "14px 16px", backgroundColor: "#f8fafc" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0e7490" strokeWidth="2.5">
+                  <path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
+                  <path d="M19.38 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.94 5.34 2.81 7.76" />
+                  <path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6" />
+                </svg>
+                Cruzeiro Marítimo
+              </div>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "#0e7490", backgroundColor: "#cffafe", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
+                Booking: {voucher.cruise.bookingNumber}
+              </span>
+            </div>
+            <div style={{ backgroundColor: "#ffffff", padding: "10px 14px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <strong style={{ fontSize: "14px", color: "#0f172a" }}>{voucher.cruise.cruiseLine} • {voucher.cruise.shipName}</strong>
+                <span style={{ fontWeight: 700, color: "#0f172a" }}>Cabine: {voucher.cruise.cabinNumber} ({voucher.cruise.cabinCategory})</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", color: "#475569" }}>
+                <div><strong>Embarque:</strong> {voucher.cruise.departurePort} ({voucher.cruise.departureDate})</div>
+                <div><strong>Desembarque:</strong> {voucher.cruise.arrivalPort} ({voucher.cruise.arrivalDate})</div>
+              </div>
             </div>
           </section>
         )}
