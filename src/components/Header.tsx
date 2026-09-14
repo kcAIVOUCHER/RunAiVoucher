@@ -236,10 +236,12 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => logout()}
-              className="p-2 rounded-lg text-xs font-bold transition-colors cursor-pointer text-slate-500 hover:text-red-600 hover:bg-red-50 ml-1"
-              title="Sair do sistema"
+              className="p-2 sm:px-2.5 sm:py-2 min-h-[40px] sm:min-h-auto rounded-lg text-xs font-bold transition-colors cursor-pointer text-slate-500 hover:text-red-600 hover:bg-red-50 flex items-center gap-1.5"
+              title="Sair do sistema e limpar sessão local"
+              aria-label="Sair do sistema"
             >
               <LogOut className="w-4 h-4" />
+              <span className="hidden lg:inline text-[11px]">Sair</span>
             </button>
           </nav>
         </div>
