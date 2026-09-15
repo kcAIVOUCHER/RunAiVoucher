@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="aivoucher_icon_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00277A" />
+      <stop offset="50%" stop-color="#152A9D" />
+      <stop offset="100%" stop-color="#16B5F0" />
+    </linearGradient>
+    <linearGradient id="spark_icon_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#21D8FF" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="16" fill="url(#aivoucher_icon_grad)" />
+
+  <!-- Stylized Voucher Ticket Path -->
+  <path d="M16 20C16 18.8954 16.8954 18 18 18H46C47.1046 18 48 18.8954 48 20V29C46.3431 29 45 30.3431 45 32C45 33.6569 46.3431 35 48 35V44C48 45.1046 47.1046 46 46 46H18C16.8954 46 16 45.1046 16 44V35C17.6569 35 19 33.6569 19 32C19 30.3431 17.6569 29 16 29V20Z" fill="#FFFFFF" fill-opacity="0.16" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" />
+
+  <!-- Perforated Line -->
+  <line x1="28" y1="23" x2="28" y2="41" stroke="#FFFFFF" stroke-width="1.8" stroke-dasharray="2 2" stroke-opacity="0.6" />
+
+  <!-- AI Sparkle in Icon -->
+  <path d="M38 24L39.5 28.5L44 30L39.5 31.5L38 36L36.5 31.5L32 30L36.5 28.5L38 24Z" fill="url(#spark_icon_grad)" />
+</svg>
