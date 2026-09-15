@@ -1140,6 +1140,85 @@ app.post("/api/parse-voucher", async (req, res) => {
 
       const includeFlights = serviceType === "flight" || serviceType === "package" || hasFlightTerms;
 
+      const demoHotel = isHotel || isPackage ? {
+        hotelName: "Bourbon Curitiba Hotel & Suites",
+        address: "Rua Cândido Lopes, 102 - Centro",
+        city: "Curitiba - PR",
+        checkInDate: "18/10/2026",
+        checkInTime: "14:00",
+        checkOutDate: "21/10/2026",
+        checkOutTime: "12:00",
+        nights: 3,
+        roomType: "Superior Casal",
+        mealPlan: "Café da Manhã Incluso",
+        confirmationCode: "HTL-99824",
+        guestsNames: ["Hóspede Titular"],
+        qrCodeData: "HTL-99824-BOURBON",
+        barcodeData: "99824102603",
+        barcodeType: "CODE128"
+      } : null;
+
+      const demoCar = isCar || isPackage ? {
+        rentalCompany: "Localiza Hertz",
+        confirmationCode: "LOC-882941X",
+        carModelOrCategory: "Grupo C - Sedan Automático (Onix Plus)",
+        pickupLocation: "Balcão Aeroporto Guarulhos (GRU) Terminal 2",
+        pickupDate: "15/09/2026",
+        pickupTime: "10:00",
+        dropoffLocation: "Balcão Aeroporto Guarulhos (GRU) Terminal 2",
+        dropoffDate: "20/09/2026",
+        dropoffTime: "18:00",
+        driverName: "EDUARDO CARVALHO DA SILVA",
+        driverDocument: "04981294819",
+        includedCoverage: "Proteção Total LDW com KM Livre",
+        barcodeData: "LOC882941X",
+        notes: "Apresentar CNH física ou digital e cartão de crédito para caução."
+      } : null;
+
+      const demoInsurance = isInsurance || isPackage ? {
+        provider: "Assist Card",
+        policyNumber: "AC-BR-9902183",
+        planName: "Assist Card 60K Internacional",
+        startDate: "15/10/2026",
+        endDate: "30/10/2026",
+        medicalCoverage: "USD 60.000,00",
+        covidCoverage: "USD 15.000,00",
+        baggageCoverage: "USD 1.200,00",
+        emergencyPhone24h: "+54 9 11 2703-9665 (WhatsApp 24h) ou 0800 770 1664",
+        insuredNames: ["EDUARDO CARVALHO DA SILVA"],
+        qrCodeData: "AC-BR-9902183-ASSISTCARD"
+      } : null;
+
+      const demoTicket = isTicket || isPackage ? {
+        attractionName: "Magic Kingdom Park - Walt Disney World",
+        supplierOrPark: "Disney Destinations",
+        ticketType: "1-Day Standard Theme Park Ticket",
+        ticketNumberOrCode: "WDW-88390218",
+        date: "22/10/2026",
+        time: "09:00",
+        locationOrAddress: "Catracas Principais - Magic Kingdom Entrance, Orlando FL",
+        passengersOrHolders: ["EDUARDO CARVALHO DA SILVA"],
+        importantInstructions: "Vincule o código ao app My Disney Experience ou apresente este voucher na catraca.",
+        barcodeData: "WDW88390218",
+        barcodeType: "CODE128"
+      } : null;
+
+      const demoCruise = isCruise ? {
+        cruiseLine: "MSC Cruzeiros",
+        shipName: "MSC Grandiosa",
+        bookingNumber: "MSC-7749102",
+        cabinNumber: "11042",
+        cabinCategory: "Varanda Fantastica com Vista para o Mar",
+        departurePort: "Concais - Porto de Santos, SP",
+        departureDate: "14/11/2026",
+        departureTime: "11:30",
+        arrivalPort: "Porto de Santos, SP",
+        arrivalDate: "21/11/2026",
+        itinerarySummary: "Santos > Ilhabela > Búzios > Salvador > Ilhéus > Santos (7 noites)",
+        mealPlan: "All Inclusive de Bebidas Easy Drink & Refeições Principais",
+        passengers: ["CARLOS EDUARDO VALENÇA"]
+      } : null;
+
       return {
         pnr: pnrMatch ? pnrMatch[1].toUpperCase() : "BR" + Math.floor(1000 + Math.random() * 9000),
         serviceType,
@@ -1176,76 +1255,21 @@ app.post("/api/parse-voucher", async (req, res) => {
             baggageHand: "1 Mochila + 1 Mala de bordo até 10kg",
             baggageChecked: "1 Peça até 23kg inclusa",
             aircraft: "Airbus A320",
-            duration: "1h 10m"
+            duration: "1h 10m",
+            barcodeData: pnrMatch ? pnrMatch[1].toUpperCase() : "BR9942",
+            barcodeType: "CODE128"
           }
         ] : [],
-        hotel: isHotel || isPackage ? {
-          hotelName: "Bourbon Curitiba Hotel & Suites",
-          address: "Rua Cândido Lopes, 102 - Centro",
-          city: "Curitiba - PR",
-          checkInDate: "18/10/2026",
-          checkInTime: "14:00",
-          checkOutDate: "21/10/2026",
-          checkOutTime: "12:00",
-          nights: 3,
-          roomType: "Superior Casal",
-          mealPlan: "Café da Manhã Incluso",
-          confirmationCode: "HTL-99824",
-          guestsNames: ["Hóspede Titular"]
-        } : null,
-        carRental: isCar || isPackage ? {
-          rentalCompany: "Localiza Hertz",
-          confirmationCode: "LOC-882941X",
-          carModelOrCategory: "Grupo C - Sedan Automático (Onix Plus)",
-          pickupLocation: "Balcão Aeroporto Guarulhos (GRU) Terminal 2",
-          pickupDate: "15/09/2026",
-          pickupTime: "10:00",
-          dropoffLocation: "Balcão Aeroporto Guarulhos (GRU) Terminal 2",
-          dropoffDate: "20/09/2026",
-          dropoffTime: "18:00",
-          driverName: "EDUARDO CARVALHO DA SILVA",
-          driverDocument: "04981294819",
-          includedCoverage: "Proteção Total LDW com KM Livre",
-          notes: "Apresentar CNH física ou digital e cartão de crédito para caução."
-        } : null,
-        insurance: isInsurance || isPackage ? {
-          provider: "Assist Card",
-          policyNumber: "AC-BR-9902183",
-          planName: "Assist Card 60K Internacional",
-          startDate: "15/10/2026",
-          endDate: "30/10/2026",
-          medicalCoverage: "USD 60.000,00",
-          covidCoverage: "USD 15.000,00",
-          baggageCoverage: "USD 1.200,00",
-          emergencyPhone24h: "+54 9 11 2703-9665 (WhatsApp 24h) ou 0800 770 1664",
-          insuredNames: ["EDUARDO CARVALHO DA SILVA"]
-        } : null,
-        ticket: isTicket || isPackage ? {
-          attractionName: "Magic Kingdom Park - Walt Disney World",
-          supplierOrPark: "Disney Destinations",
-          ticketType: "1-Day Standard Theme Park Ticket",
-          ticketNumberOrCode: "WDW-88390218",
-          date: "22/10/2026",
-          time: "09:00",
-          locationOrAddress: "Catracas Principais - Magic Kingdom Entrance, Orlando FL",
-          passengersOrHolders: ["EDUARDO CARVALHO DA SILVA"],
-          importantInstructions: "Vincule o código ao app My Disney Experience ou apresente este voucher na catraca."
-        } : null,
-        cruise: isCruise ? {
-          cruiseLine: "MSC Cruzeiros",
-          shipName: "MSC Grandiosa",
-          bookingNumber: "MSC-7749102",
-          cabinNumber: "11042",
-          cabinCategory: "Varanda Fantastica com Vista para o Mar",
-          departurePort: "Concais - Porto de Santos, SP",
-          departureDate: "14/11/2026",
-          departureTime: "11:30",
-          arrivalPort: "Porto de Santos, SP",
-          arrivalDate: "21/11/2026",
-          itinerarySummary: "Santos > Ilhabela > Búzios > Salvador > Ilhéus > Santos (7 noites)",
-          mealPlan: "All Inclusive de Bebidas Easy Drink & Refeições Principais",
-          passengers: ["CARLOS EDUARDO VALENÇA"]
-        } : null,
+        hotel: demoHotel,
+        hotels: demoHotel ? [demoHotel] : [],
+        carRental: demoCar,
+        carRentals: demoCar ? [demoCar] : [],
+        insurance: demoInsurance,
+        insurances: demoInsurance ? [demoInsurance] : [],
+        ticket: demoTicket,
+        tickets: demoTicket ? [demoTicket] : [],
+        cruise: demoCruise,
+        cruises: demoCruise ? [demoCruise] : [],
         pricing: {
           currency: "BRL",
           fare: 1250.00,
@@ -1254,6 +1278,9 @@ app.post("/api/parse-voucher", async (req, res) => {
           otherFees: 0.00,
           total: 1378.90
         },
+        qrCodeData: pnrMatch ? pnrMatch[1].toUpperCase() : "BR9942",
+        barcodeData: pnrMatch ? pnrMatch[1].toUpperCase() : "BR9942",
+        barcodeType: "CODE128",
         notes: ""
       };
     };
@@ -1277,53 +1304,196 @@ app.post("/api/parse-voucher", async (req, res) => {
       }
     });
 
-    const systemPrompt = `Você é o AiVoucher Intelligence Engine, especialista em consolidação de viagens e emissão de vouchers de turismo no padrão A4.
+    const systemPrompt = `Você é o AiVoucher Intelligence Engine, especialista em consolidação de viagens e emissão de vouchers de turismo profissionais no padrão A4.
 
-O usuário pode anexar 1 OU MÚLTIPLOS DOCUMENTOS/ARQUIVOS (exemplo: bilhete aéreo de ida e volta, confirmação de hotel/hospedagem, locação de carro, apólice de seguro viagem, ingressos de parques/atrações, cruzeiro, traslados).
+O usuário pode anexar 1 OU MÚLTIPLOS DOCUMENTOS/ARQUIVOS (exemplo: bilhetes aéreos de ida e volta, confirmações de hotéis distintos, locações de veículos, apólices de seguro, ingressos de parques/atrações, cruzeiros, traslados).
 
-SEU OBJETIVO É LER TODOS OS DOCUMENTOS CONJUNTAMENTE E UNIFICAR TUDO NO MESMO VOUCHER COMO UM PACOTE COMPLETO CONSOLIDADO.
+SEU OBJETIVO É LER TODOS OS DOCUMENTOS CONJUNTAMENTE E UNIFICAR TUDO NO MESMO VOUCHER COMO UM PACOTE CONSOLIDADO ORGANIZADO EM BLOCOS CLAROS E INDEPENDENTES.
+
+================================================================================
+REGRA ABSOLUTA: BLOCOS INDEPENDENTES PARA CADA PRODUTO / SERVIÇO
+================================================================================
+JAMAIS UNIFIQUE OU MISTURE hotéis ou produtos diferentes em um único texto ou descrição!
+- Se houver 2 ou mais hotéis (ex: Hotel A de 14 a 17 e Hotel B de 17 a 20):
+  CRIE DOIS ELEMENTOS SEPARADOS no array "hotels"!
+  Cada bloco de hotel DEVE ter seu próprio nome, endereço, cidade, código de confirmação/reserva, data exata de check-in, data exata de check-out, diárias (nights), tipo de quarto, plano de refeição, lista de hóspedes e QR code / código de barras (se houver no documento daquele hotel).
+- O mesmo vale para:
+  * "carRentals": Cada locação de veículo é um item separado no array (empresa, categoria, datas/locais de retirada e devolução, condutor, etc.).
+  * "insurances": Cada apólice de seguro é um item separado (seguradora, plano, apólice, vigência início/fim, coberturas, telefone de emergência).
+  * "tickets": Cada atração ou ingresso é um item separado (nome da atração, fornecedor, tipo de ingresso, data, horário, código, instruções).
+  * "cruises": Cada cruzeiro é um item separado.
+  * "transfers": Cada traslado/transfer é um item separado.
+  * "flights": Cada trecho de voo em ordem cronológica de embarque.
+
+================================================================================
+REPLICAÇÃO EXATA DE QR CODE E CÓDIGO DE BARRAS:
+================================================================================
+Se qualquer um dos comprovantes anexados contiver um QR Code ou Código de Barras (como em bilhetes aéreos, cartões de embarque, confirmações de hotel, ingressos de parques, apólices ou vouchers com código de validação):
+1. Extraia o conteúdo/texto/código exato codificado (por exemplo: URL de validação, string do PNR, código do bilhete, código de barras numérico ou alfanumérico).
+2. Preencha no campo "qrCodeData" (se for QR Code) ou "barcodeData" (se for código de barras) do respectivo item/serviço e também no nível raiz do voucher.
+3. Se for código de barras tradicional, identifique o padrão no campo "barcodeType" ("CODE128", "EAN13", "CODE39", "PDF417", "AZTEC", "QR_CODE").
 
 Retorne APENAS um JSON válido estritamente no esquema abaixo:
 
 {
   "pnr": "string",
   "serviceType": "flight" | "hotel" | "car" | "insurance" | "ticket" | "cruise" | "package",
-  "passengers": [{"name": "string", "ticketNumber": "string", "document": "string", "birthDate": "string", "loyaltyNumber": "string", "seat": "string"}],
-  "flights": [{"airline": "string", "airlineCode": "string", "flightNumber": "string", "isInternational": boolean, "departureAirport": "string", "departureCode": "string", "departureCity": "string", "departureDate": "string", "departureTime": "string", "arrivalAirport": "string", "arrivalCode": "string", "arrivalCity": "string", "arrivalDate": "string", "arrivalTime": "string", "cabinClass": "string", "bookingClass": "string", "fareFamily": "string", "baggageHand": "string", "baggageChecked": "string", "aircraft": "string", "duration": "string"}],
-  "hotel": {"hotelName": "string", "address": "string", "city": "string", "checkInDate": "string", "checkInTime": "string", "checkOutDate": "string", "checkOutTime": "string", "nights": number, "roomType": "string", "mealPlan": "string", "confirmationCode": "string", "guestsNames": ["string"]},
-  "carRental": {"rentalCompany": "string", "confirmationCode": "string", "carModelOrCategory": "string", "pickupLocation": "string", "pickupDate": "string", "pickupTime": "string", "dropoffLocation": "string", "dropoffDate": "string", "dropoffTime": "string", "driverName": "string", "driverDocument": "string", "includedCoverage": "string", "notes": "string"},
-  "insurance": {"provider": "string", "policyNumber": "string", "planName": "string", "startDate": "string", "endDate": "string", "medicalCoverage": "string", "covidCoverage": "string", "baggageCoverage": "string", "emergencyPhone24h": "string", "insuredNames": ["string"]},
-  "ticket": {"attractionName": "string", "supplierOrPark": "string", "ticketType": "string", "ticketNumberOrCode": "string", "date": "string", "time": "string", "locationOrAddress": "string", "passengersOrHolders": ["string"], "importantInstructions": "string"},
-  "cruise": {"cruiseLine": "string", "shipName": "string", "bookingNumber": "string", "cabinNumber": "string", "cabinCategory": "string", "departurePort": "string", "departureDate": "string", "departureTime": "string", "arrivalPort": "string", "arrivalDate": "string", "itinerarySummary": "string", "mealPlan": "string", "passengers": ["string"]},
-  "transfer": {"serviceType": "string", "pickupLocation": "string", "pickupDateTime": "string", "dropoffLocation": "string", "vehicleType": "string", "contactPhone": "string"},
-  "pricing": {"currency": "BRL" | "USD", "fare": number, "taxes": number, "serviceFee": number, "otherFees": number, "total": number},
+  "passengers": [
+    {"name": "string", "ticketNumber": "string", "document": "string", "birthDate": "string", "loyaltyNumber": "string", "seat": "string"}
+  ],
+  "flights": [
+    {
+      "airline": "string",
+      "airlineCode": "string",
+      "flightNumber": "string",
+      "isInternational": boolean,
+      "departureAirport": "string",
+      "departureCode": "string",
+      "departureCity": "string",
+      "departureDate": "string",
+      "departureTime": "string",
+      "arrivalAirport": "string",
+      "arrivalCode": "string",
+      "arrivalCity": "string",
+      "arrivalDate": "string",
+      "arrivalTime": "string",
+      "cabinClass": "string",
+      "bookingClass": "string",
+      "fareFamily": "string",
+      "baggageHand": "string",
+      "baggageChecked": "string",
+      "aircraft": "string",
+      "duration": "string",
+      "qrCodeData": "string",
+      "barcodeData": "string",
+      "barcodeType": "string"
+    }
+  ],
+  "hotels": [
+    {
+      "hotelName": "string",
+      "address": "string",
+      "city": "string",
+      "checkInDate": "string",
+      "checkInTime": "string",
+      "checkOutDate": "string",
+      "checkOutTime": "string",
+      "nights": number,
+      "roomType": "string",
+      "mealPlan": "string",
+      "confirmationCode": "string",
+      "guestsNames": ["string"],
+      "qrCodeData": "string",
+      "barcodeData": "string",
+      "barcodeType": "string",
+      "notes": "string"
+    }
+  ],
+  "carRentals": [
+    {
+      "rentalCompany": "string",
+      "confirmationCode": "string",
+      "carModelOrCategory": "string",
+      "pickupLocation": "string",
+      "pickupDate": "string",
+      "pickupTime": "string",
+      "dropoffLocation": "string",
+      "dropoffDate": "string",
+      "dropoffTime": "string",
+      "driverName": "string",
+      "driverDocument": "string",
+      "includedCoverage": "string",
+      "qrCodeData": "string",
+      "barcodeData": "string",
+      "notes": "string"
+    }
+  ],
+  "insurances": [
+    {
+      "provider": "string",
+      "policyNumber": "string",
+      "planName": "string",
+      "startDate": "string",
+      "endDate": "string",
+      "medicalCoverage": "string",
+      "covidCoverage": "string",
+      "baggageCoverage": "string",
+      "emergencyPhone24h": "string",
+      "insuredNames": ["string"],
+      "qrCodeData": "string",
+      "barcodeData": "string",
+      "notes": "string"
+    }
+  ],
+  "tickets": [
+    {
+      "attractionName": "string",
+      "supplierOrPark": "string",
+      "ticketType": "string",
+      "ticketNumberOrCode": "string",
+      "date": "string",
+      "time": "string",
+      "locationOrAddress": "string",
+      "passengersOrHolders": ["string"],
+      "importantInstructions": "string",
+      "qrCodeData": "string",
+      "barcodeData": "string",
+      "barcodeType": "string"
+    }
+  ],
+  "cruises": [
+    {
+      "cruiseLine": "string",
+      "shipName": "string",
+      "bookingNumber": "string",
+      "cabinNumber": "string",
+      "cabinCategory": "string",
+      "departurePort": "string",
+      "departureDate": "string",
+      "departureTime": "string",
+      "arrivalPort": "string",
+      "arrivalDate": "string",
+      "itinerarySummary": "string",
+      "mealPlan": "string",
+      "passengers": ["string"],
+      "qrCodeData": "string",
+      "barcodeData": "string"
+    }
+  ],
+  "transfers": [
+    {
+      "serviceType": "string",
+      "pickupLocation": "string",
+      "pickupDateTime": "string",
+      "dropoffLocation": "string",
+      "vehicleType": "string",
+      "contactPhone": "string",
+      "qrCodeData": "string",
+      "barcodeData": "string"
+    }
+  ],
+  "pricing": {
+    "currency": "BRL" | "USD",
+    "fare": number,
+    "taxes": number,
+    "serviceFee": number,
+    "otherFees": number,
+    "total": number
+  },
+  "qrCodeData": "string",
+  "barcodeData": "string",
+  "barcodeType": "string",
   "notes": "string"
 }
 
-DIRETRIZES CRÍTICAS DE CONSOLIDAÇÃO (PACOTE COMPLETO):
-1. SE HOUVER MÚLTIPLOS SERVIÇOS (ex: aéreo + hotel, aéreo + carro, hotel + seguro, etc.) OU MÚLTIPLOS ARQUIVOS, DEFINE OBRIGATORIAMENTE "serviceType": "package".
+DIRETRIZES CRÍTICAS DE CONSOLIDAÇÃO:
+1. SE HOUVER MÚLTIPLOS SERVIÇOS (aéreo + hotel, ou múltiplos hotéis, aéreo + carro, etc.) OU MÚLTIPLOS ARQUIVOS, DEFINE OBRIGATORIAMENTE "serviceType": "package".
 2. UNIFICAÇÃO DE PASSAGEIROS E HÓSPEDES:
-   - O bilhete aéreo pode ter X passageiros, e a reserva de hotel pode ter outras X pessoas (ou hóspedes adicionais, crianças, acompanhantes).
-   - JUNTE TODOS OS NOMES DE VIAJANTES na lista "passengers" do JSON, sem duplicar nomes!
-   - Quem tiver bilhete aéreo / assento, preencha os campos correspondentes ("ticketNumber", "seat").
-   - Quem estiver apenas no hotel (ou seguro/carro), inclua também na lista "passengers" com o nome completo e documento (se houver).
-   - No objeto "hotel.guestsNames", liste TODOS os hóspedes da acomodação.
-   - No objeto "carRental.driverName", informe o condutor principal da locação.
-   - No objeto "insurance.insuredNames", liste todos os nomes segurados.
-3. CONSOLIDAÇÃO DE VOOS ("flights"):
-   - Se houver arquivos separados de ida e volta, ou múltiplos trechos/conexões, inclua TODOS no array "flights" em ordem cronológica de embarque.
-   - Duração do voo: Calcule sempre (Horário de Chegada - Horário de Saída, considerando fuso). JAMAIS deixe vazio.
-   - Bagagem: Descreva detalhadamente o que está incluso (ex: "🎒 1 Item pessoal + 🧳 1 Mala de bordo até 10kg").
-4. CONSOLIDAÇÃO DE DEMAIS SERVIÇOS:
-   - Se houver hotel, preencha o objeto "hotel" completo.
-   - Se houver carro alugado, preencha o objeto "carRental" completo.
-   - Se houver seguro viagem, preencha o objeto "insurance" completo (com telefone 24h de emergência).
-   - Se houver ingressos, preencha "ticket".
-   - Se houver cruzeiro ou transfer, preencha os respectivos objetos.
-   - Deixe como null apenas os serviços que NÃO constarem nos documentos enviados.
-5. VALORES E TARIFAS ("pricing"):
-   - Se houver preços e taxas nos documentos, SOME as tarifas e taxas de todos os serviços para fornecer o total consolidado do pacote.
-6. RETORNE EXCLUSIVAMENTE O JSON PURO, sem markdown (\`\`\`json) e sem introduções ou comentários.`;
+   - Bilhetes aéreos podem ter certos passageiros, hotéis podem ter outros hóspedes.
+   - Junte todos os viajantes no array "passengers" na raiz (sem duplicar).
+   - Nos itens individuais ("hotels[].guestsNames", "insurances[].insuredNames", "tickets[].passengersOrHolders"), liste quem especificamente usufrui daquele serviço.
+3. VALORES E TARIFAS: Some todas as tarifas e taxas para compor o total consolidado da viagem em "pricing".
+4. RETORNE EXCLUSIVAMENTE O JSON PURO, sem markdown (\`\`\`json) e sem explicações externas.`;
 
     const parts: any[] = [];
 
@@ -1438,6 +1608,80 @@ DIRETRIZES CRÍTICAS DE CONSOLIDAÇÃO (PACOTE COMPLETO):
       } catch (e) {
         const cleanJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
         parsedData = JSON.parse(cleanJson);
+      }
+
+      if (parsedData && typeof parsedData === "object") {
+        // Normalize hotels
+        if (Array.isArray(parsedData.hotels) && parsedData.hotels.length > 0) {
+          parsedData.hotel = parsedData.hotels[0];
+        } else if (parsedData.hotel) {
+          parsedData.hotels = [parsedData.hotel];
+        } else {
+          parsedData.hotels = [];
+        }
+
+        // Normalize carRentals
+        if (Array.isArray(parsedData.carRentals) && parsedData.carRentals.length > 0) {
+          parsedData.carRental = parsedData.carRentals[0];
+        } else if (parsedData.carRental) {
+          parsedData.carRentals = [parsedData.carRental];
+        } else {
+          parsedData.carRentals = [];
+        }
+
+        // Normalize insurances
+        if (Array.isArray(parsedData.insurances) && parsedData.insurances.length > 0) {
+          parsedData.insurance = parsedData.insurances[0];
+        } else if (parsedData.insurance) {
+          parsedData.insurances = [parsedData.insurance];
+        } else {
+          parsedData.insurances = [];
+        }
+
+        // Normalize tickets
+        if (Array.isArray(parsedData.tickets) && parsedData.tickets.length > 0) {
+          parsedData.ticket = parsedData.tickets[0];
+        } else if (parsedData.ticket) {
+          parsedData.tickets = [parsedData.ticket];
+        } else {
+          parsedData.tickets = [];
+        }
+
+        // Normalize cruises
+        if (Array.isArray(parsedData.cruises) && parsedData.cruises.length > 0) {
+          parsedData.cruise = parsedData.cruises[0];
+        } else if (parsedData.cruise) {
+          parsedData.cruises = [parsedData.cruise];
+        } else {
+          parsedData.cruises = [];
+        }
+
+        // Normalize transfers
+        if (Array.isArray(parsedData.transfers) && parsedData.transfers.length > 0) {
+          parsedData.transfer = parsedData.transfers[0];
+        } else if (parsedData.transfer) {
+          parsedData.transfers = [parsedData.transfer];
+        } else {
+          parsedData.transfers = [];
+        }
+
+        // Multi-block / package auto-detection
+        const totalItemsCount =
+          (parsedData.flights?.length || 0) +
+          (parsedData.hotels?.length || 0) +
+          (parsedData.carRentals?.length || 0) +
+          (parsedData.insurances?.length || 0) +
+          (parsedData.tickets?.length || 0);
+
+        if (
+          parsedData.hotels.length > 1 ||
+          parsedData.carRentals.length > 1 ||
+          parsedData.insurances.length > 1 ||
+          parsedData.tickets.length > 1 ||
+          totalItemsCount > 1
+        ) {
+          parsedData.serviceType = "package";
+        }
       }
 
       res.json({
