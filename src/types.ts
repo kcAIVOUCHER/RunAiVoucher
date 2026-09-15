@@ -179,6 +179,7 @@ export interface FlightSegment {
 }
 
 export interface HotelBooking {
+  id?: string;
   hotelName: string;
   address?: string;
   city?: string;
@@ -194,10 +195,15 @@ export interface HotelBooking {
   mealPlan?: string;
   confirmationCode?: string;
   guestsNames?: string[];
+  qrCodeData?: string;
+  barcodeData?: string;
+  barcodeType?: string;
+  codeImageBase64?: string;
   notes?: string;
 }
 
 export interface CarRentalBooking {
+  id?: string;
   rentalCompany: string; // Localiza, Movida, Avis, Hertz, Alamo
   confirmationCode?: string;
   carModelOrCategory?: string; // ex: Sedan Automático Grupo C (Onix Plus ou similar)
@@ -215,10 +221,15 @@ export interface CarRentalBooking {
   driverDocument?: string;
   includedCoverage?: string; // ex: Proteção Completa LDW/CDW, Quilometragem Livre
   insuranceIncluded?: string;
+  qrCodeData?: string;
+  barcodeData?: string;
+  barcodeType?: string;
+  codeImageBase64?: string;
   notes?: string;
 }
 
 export interface InsuranceBooking {
+  id?: string;
   provider: string; // ex: Assist Card, GTA, Universal Assistance, Affinity
   insurerName?: string;
   policyNumber?: string; // Número da Apólice / Bilhete
@@ -234,10 +245,15 @@ export interface InsuranceBooking {
   emergencyPhone24h?: string; // Telefone e WhatsApp 24h para emergências médicas no exterior
   emergencyPhone?: string;
   insuredNames?: string[];
+  qrCodeData?: string;
+  barcodeData?: string;
+  barcodeType?: string;
+  codeImageBase64?: string;
   notes?: string;
 }
 
 export interface TicketBooking {
+  id?: string;
   attractionName: string; // ex: Magic Kingdom Park - Walt Disney World, Tour Coliseu & Vaticano
   supplierOrPark?: string; // ex: Disney Destinations, Universal, Civitatis
   ticketType?: string; // ex: Ingresso Adulto 1 Dia, Hopper Plus, VIP FastPass
@@ -247,9 +263,14 @@ export interface TicketBooking {
   locationOrAddress?: string;
   passengersOrHolders?: string[];
   importantInstructions?: string; // ex: Apresentar voucher na catraca
+  qrCodeData?: string;
+  barcodeData?: string;
+  barcodeType?: string;
+  codeImageBase64?: string;
 }
 
 export interface CruiseBooking {
+  id?: string;
   cruiseLine: string; // ex: MSC Cruzeiros, Costa Cruzeiros, Royal Caribbean
   shipName: string; // ex: MSC Grandiosa
   bookingNumber?: string;
@@ -263,9 +284,14 @@ export interface CruiseBooking {
   itinerarySummary?: string; // ex: Santos > Búzios > Ilha Grande > Santos (4 noites)
   mealPlan?: string; // ex: Pacote Easy Bebidas & Refeições nos Restaurantes Principais
   passengers?: string[];
+  qrCodeData?: string;
+  barcodeData?: string;
+  barcodeType?: string;
+  codeImageBase64?: string;
 }
 
 export interface TransferBooking {
+  id?: string;
   serviceType: string; // ex: In/Out, Aeroporto -> Hotel, Privativo
   pickupLocation: string; // ex: Aeroporto de Salvador (SSA)
   pickupDateTime: string;
@@ -273,6 +299,10 @@ export interface TransferBooking {
   vehicleType?: string; // ex: Van Executiva Climatizada
   flightReference?: string;
   contactPhone?: string;
+  qrCodeData?: string;
+  barcodeData?: string;
+  barcodeType?: string;
+  codeImageBase64?: string;
 }
 
 export interface VoucherPricing {
@@ -298,17 +328,29 @@ export interface Voucher {
   serviceType: ServiceType;
   passengers: Passenger[];
   flights: FlightSegment[];
+  // Single and Multi-block collections
   hotel?: HotelBooking | null;
+  hotels?: HotelBooking[];
   carRental?: CarRentalBooking | null;
+  carRentals?: CarRentalBooking[];
   insurance?: InsuranceBooking | null;
+  insurances?: InsuranceBooking[];
   ticket?: TicketBooking | null;
+  tickets?: TicketBooking[];
   cruise?: CruiseBooking | null;
+  cruises?: CruiseBooking[];
   transfer?: TransferBooking | null;
+  transfers?: TransferBooking[];
   // Multi-service list for package complete
   packageServices?: {
     transfers?: TransferBooking[];
     tickets?: TicketBooking[];
   };
+  // Replicated QR Code & Barcode from attached documents
+  qrCodeData?: string;
+  barcodeData?: string;
+  barcodeType?: string;
+  codeImageBase64?: string;
   pricing: VoucherPricing;
   priceDisplayMode: PriceDisplayMode;
   hideFareFamily: boolean;
