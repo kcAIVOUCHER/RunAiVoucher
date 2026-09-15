@@ -1,6 +1,0 @@
-{
-  "name": "AiVoucher - Emissor de Vouchers & Gestão de Agências",
-  "description": "Plataforma SaaS para agências de viagens com emissão inteligente de vouchers por IA (AiVoucher), gestão de empresas, licenças de operadores e faturamento. Uma propriedade de RomamiaViagens®.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
