@@ -1,6 +1,17 @@
 import React from "react";
-import { Voucher, AgencyProfile, Company } from "../types";
+import {
+  Voucher,
+  AgencyProfile,
+  Company,
+  HotelBooking,
+  CarRentalBooking,
+  InsuranceBooking,
+  TicketBooking,
+  CruiseBooking,
+  TransferBooking
+} from "../types";
 import { formatPassengerDocumentLGPD, getProductBoardingRules } from "../utils/boardingRules";
+import { CodeRenderer } from "./CodeRenderer";
 
 export interface VoucherPDFTemplateProps {
   voucher: Voucher;
@@ -25,6 +36,30 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
   const primaryColor = agency.primaryColor || "#0284c7";
   const agencyLogo = agencyLogoBase64 || agency.logoUrl;
   const companyLogo = companyLogoBase64 || company?.logoUrl;
+
+  const hotelsList: HotelBooking[] = (voucher.hotels && voucher.hotels.length > 0)
+    ? voucher.hotels
+    : (voucher.hotel ? [voucher.hotel] : []);
+
+  const carsList: CarRentalBooking[] = (voucher.carRentals && voucher.carRentals.length > 0)
+    ? voucher.carRentals
+    : (voucher.carRental ? [voucher.carRental] : []);
+
+  const insurancesList: InsuranceBooking[] = (voucher.insurances && voucher.insurances.length > 0)
+    ? voucher.insurances
+    : (voucher.insurance ? [voucher.insurance] : []);
+
+  const ticketsList: TicketBooking[] = (voucher.tickets && voucher.tickets.length > 0)
+    ? voucher.tickets
+    : (voucher.ticket ? [voucher.ticket] : (voucher.packageServices?.tickets || []));
+
+  const cruisesList: CruiseBooking[] = (voucher.cruises && voucher.cruises.length > 0)
+    ? voucher.cruises
+    : (voucher.cruise ? [voucher.cruise] : []);
+
+  const transfersList: TransferBooking[] = (voucher.transfers && voucher.transfers.length > 0)
+    ? voucher.transfers
+    : (voucher.transfer ? [voucher.transfer] : (voucher.packageServices?.transfers || []));
 
   const formatCurrency = (val?: number, currency = "BRL") => {
     if (val === undefined || val === null) return "R$ 0,00";
@@ -333,6 +368,26 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
           </div>
         )}
 
+        {/* GLOBAL QR CODE / BARCODE (REPLICATED FROM UPLOADED VOUCHER DOCUMENT) */}
+        {(voucher.qrCodeData || voucher.barcodeData || voucher.codeImageBase64) && (
+          <div
+            style={{
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              padding: "10px 14px",
+              backgroundColor: "#ffffff"
+            }}
+          >
+            <CodeRenderer
+              qrCodeData={voucher.qrCodeData}
+              barcodeData={voucher.barcodeData}
+              barcodeType={voucher.barcodeType}
+              codeImageBase64={voucher.codeImageBase64}
+              title="Código de Autenticação / Leitura Digital do Voucher"
+            />
+          </div>
+        )}
+
         {/* PASSENGERS LIST SECTION */}
         <section
           style={{
@@ -633,212 +688,633 @@ export const VoucherPDFTemplate: React.FC<VoucherPDFTemplateProps> = ({
             </section>
           )}
 
-        {/* HOTEL SECTION (IF PRESENT) */}
-        {voucher.hotel && (
-          <section
-            style={{
-              border: "1px solid #e2e8f0",
-              borderRadius: "8px",
-              padding: "14px 16px",
-              backgroundColor: "#f8fafc"
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+        {/* HOTELS SECTION (MULTI-BLOCK SUPPORT) */}
+        {hotelsList.length > 0 && (
+          <section style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2.5">
                   <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
                   <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
                   <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
                 </svg>
-                Hospedagem / Hotel
+                {hotelsList.length > 1 ? `Hospedagens / Hotéis (${hotelsList.length} Reservas Distintas)` : "Hospedagem / Hotel"}
               </div>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "#0369a1", backgroundColor: "#e0f2fe", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
-                Confirmação: {voucher.hotel.confirmationCode}
-              </span>
             </div>
 
-            <div style={{ backgroundColor: "#ffffff", padding: "12px 14px", borderRadius: "6px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "8px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <h3 style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a", margin: 0 }}>{voucher.hotel.hotelName}</h3>
-                  {voucher.hotel.address && <p style={{ fontSize: "11px", color: "#64748b", margin: "2px 0 0 0" }}>{voucher.hotel.address}</p>}
-                </div>
-                {voucher.hotel.mealPlan && (
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46", backgroundColor: "#ecfdf5", padding: "2px 8px", borderRadius: "4px", border: "1px solid #a7f3d0" }}>
-                    {voucher.hotel.mealPlan}
-                  </span>
-                )}
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "4px", fontSize: "12px" }}>
-                <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Check-in</span>
-                  <strong style={{ color: "#0f172a", fontSize: "13px" }}>{voucher.hotel.checkInDate}</strong> {voucher.hotel.checkInTime ? `a partir das ${voucher.hotel.checkInTime}` : ""}
-                </div>
-                <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Check-out</span>
-                  <strong style={{ color: "#0f172a", fontSize: "13px" }}>{voucher.hotel.checkOutDate}</strong> {voucher.hotel.checkOutTime ? `até às ${voucher.hotel.checkOutTime}` : ""}
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#334155", paddingTop: "4px", borderTop: "1px solid #f1f5f9" }}>
-                <span><strong>Quarto:</strong> {voucher.hotel.roomCategory || voucher.hotel.roomType || "Standard"}</span>
-                <span><strong>Acomodação:</strong> {voucher.hotel.roomsCount || 1} Quarto(s) • {voucher.hotel.guestsCount || voucher.hotel.guestsNames?.length || 1} Hóspede(s)</span>
-              </div>
-
-              {voucher.hotel.guestsNames && voucher.hotel.guestsNames.length > 0 && (
-                <div style={{ paddingTop: "6px", borderTop: "1px dashed #e2e8f0", fontSize: "11px" }}>
-                  <span style={{ color: "#64748b", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Hóspedes Registrados:</span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                    {voucher.hotel.guestsNames.map((guest: string, i: number) => (
-                      <span key={i} style={{ backgroundColor: "#f1f5f9", color: "#1e293b", padding: "2px 6px", borderRadius: "4px", fontWeight: 600 }}>
-                        👤 {guest}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {hotelsList.map((hotel, index) => (
+                <div
+                  key={hotel.id || index}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "12px 14px",
+                    backgroundColor: "#f8fafc",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          backgroundColor: primaryColor,
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          padding: "2px 8px",
+                          borderRadius: "9999px"
+                        }}
+                      >
+                        {hotelsList.length > 1 ? `Hotel #${index + 1}` : "Hotel"}
                       </span>
-                    ))}
+                      <strong style={{ fontSize: "15px", color: "#0f172a" }}>{hotel.hotelName}</strong>
+                    </div>
+                    {hotel.confirmationCode && (
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#0369a1", backgroundColor: "#e0f2fe", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
+                        Confirmação: {hotel.confirmationCode}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ backgroundColor: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        {(hotel.address || hotel.city) && (
+                          <p style={{ fontSize: "11px", color: "#64748b", margin: 0 }}>
+                            📍 {hotel.address}{hotel.city ? ` • ${hotel.city}` : ""}
+                          </p>
+                        )}
+                      </div>
+                      {hotel.mealPlan && (
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46", backgroundColor: "#ecfdf5", padding: "2px 8px", borderRadius: "4px", border: "1px solid #a7f3d0" }}>
+                          {hotel.mealPlan}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px" }}>
+                      <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Check-in</span>
+                        <strong style={{ color: "#0f172a", fontSize: "13px" }}>{hotel.checkInDate}</strong> {hotel.checkInTime ? `a partir das ${hotel.checkInTime}` : ""}
+                      </div>
+                      <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Check-out</span>
+                        <strong style={{ color: "#0f172a", fontSize: "13px" }}>{hotel.checkOutDate}</strong> {hotel.checkOutTime ? `até às ${hotel.checkOutTime}` : ""}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "#334155", paddingTop: "4px", borderTop: "1px solid #f1f5f9" }}>
+                      <span><strong>Quarto:</strong> {hotel.roomCategory || hotel.roomType || "Standard"}</span>
+                      <span><strong>Acomodação:</strong> {hotel.roomsCount || 1} Quarto(s) • {hotel.guestsCount || hotel.guestsNames?.length || 1} Hóspede(s)</span>
+                    </div>
+
+                    {hotel.guestsNames && hotel.guestsNames.length > 0 && (
+                      <div style={{ paddingTop: "6px", borderTop: "1px dashed #e2e8f0", fontSize: "11px" }}>
+                        <span style={{ color: "#64748b", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: "4px" }}>Hóspedes Registrados:</span>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                          {hotel.guestsNames.map((guest: string, i: number) => (
+                            <span key={i} style={{ backgroundColor: "#f1f5f9", color: "#1e293b", padding: "2px 6px", borderRadius: "4px", fontWeight: 600 }}>
+                              👤 {guest}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* QR Code / Barcode replication */}
+                    {(hotel.qrCodeData || hotel.barcodeData || hotel.codeImageBase64) && (
+                      <div style={{ paddingTop: "6px", borderTop: "1px solid #f1f5f9" }}>
+                        <CodeRenderer
+                          qrCodeData={hotel.qrCodeData}
+                          barcodeData={hotel.barcodeData}
+                          barcodeType={hotel.barcodeType}
+                          codeImageBase64={hotel.codeImageBase64}
+                          title={`Validação Digital - ${hotel.hotelName}`}
+                          compact={true}
+                        />
+                      </div>
+                    )}
+
+                    {hotel.notes && (
+                      <div style={{ fontSize: "11px", color: "#64748b", backgroundColor: "#fef3c7", padding: "6px 8px", borderRadius: "4px", border: "1px solid #fde68a" }}>
+                        ⚠️ {hotel.notes}
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
+              ))}
             </div>
           </section>
         )}
 
-        {/* CAR RENTAL SECTION (IF PRESENT) */}
-        {voucher.carRental && (
-          <section style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "14px 16px", backgroundColor: "#f8fafc" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+        {/* CAR RENTAL SECTION (MULTI-BLOCK SUPPORT) */}
+        {carsList.length > 0 && (
+          <section style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5">
                   <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
                   <circle cx="7" cy="17" r="2" />
                   <circle cx="17" cy="17" r="2" />
                 </svg>
-                Locação de Veículo
+                {carsList.length > 1 ? `Locações de Veículos (${carsList.length} Contratos)` : "Locação de Veículo"}
               </div>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "#b45309", backgroundColor: "#fef3c7", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
-                Reserva: {voucher.carRental.confirmationCode}
-              </span>
             </div>
 
-            <div style={{ backgroundColor: "#ffffff", padding: "12px 14px", borderRadius: "6px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "8px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <h3 style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a", margin: 0 }}>
-                    {voucher.carRental.rentalCompany} • {voucher.carRental.carModel || voucher.carRental.carCategory || voucher.carRental.carModelOrCategory}
-                  </h3>
-                  <p style={{ fontSize: "11px", color: "#64748b", margin: "2px 0 0 0" }}>Categoria / Grupo: {voucher.carRental.carCategory || voucher.carRental.carModelOrCategory}</p>
-                </div>
-                {voucher.carRental.insuranceIncluded && (
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46", backgroundColor: "#ecfdf5", padding: "2px 8px", borderRadius: "4px" }}>
-                    Seguro Incluso
-                  </span>
-                )}
-              </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {carsList.map((car, index) => (
+                <div
+                  key={car.id || index}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "12px 14px",
+                    backgroundColor: "#f8fafc",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          backgroundColor: primaryColor,
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          padding: "2px 8px",
+                          borderRadius: "9999px"
+                        }}
+                      >
+                        {carsList.length > 1 ? `Carro #${index + 1}` : "Carro"}
+                      </span>
+                      <strong style={{ fontSize: "15px", color: "#0f172a" }}>
+                        {car.rentalCompany} • {car.carModel || car.carCategory || car.carModelOrCategory}
+                      </strong>
+                    </div>
+                    {car.confirmationCode && (
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#b45309", backgroundColor: "#fef3c7", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
+                        Reserva: {car.confirmationCode}
+                      </span>
+                    )}
+                  </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "4px", fontSize: "12px" }}>
-                <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Retirada</span>
-                  <strong style={{ color: "#0f172a" }}>{voucher.carRental.pickupLocation}</strong>
-                  <div style={{ color: "#475569" }}>{voucher.carRental.pickupDateTime || `${voucher.carRental.pickupDate || ""} ${voucher.carRental.pickupTime || ""}`}</div>
+                  <div style={{ backgroundColor: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "11px", color: "#64748b" }}>
+                        Categoria / Grupo: <strong>{car.carCategory || car.carModelOrCategory || "Padrão"}</strong>
+                      </span>
+                      {(car.insuranceIncluded || car.includedCoverage) && (
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46", backgroundColor: "#ecfdf5", padding: "2px 8px", borderRadius: "4px", border: "1px solid #a7f3d0" }}>
+                          {car.includedCoverage || "Proteção / Seguro Incluso"}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px" }}>
+                      <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#059669", textTransform: "uppercase", display: "block" }}>📍 Retirada (Pick-up)</span>
+                        <strong style={{ color: "#0f172a" }}>{car.pickupLocation}</strong>
+                        <div style={{ color: "#475569", marginTop: "2px" }}>
+                          {car.pickupDateTime || `${car.pickupDate || ""} às ${car.pickupTime || ""}`}
+                        </div>
+                      </div>
+                      <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#0284c7", textTransform: "uppercase", display: "block" }}>📍 Devolução (Drop-off)</span>
+                        <strong style={{ color: "#0f172a" }}>{car.dropoffLocation}</strong>
+                        <div style={{ color: "#475569", marginTop: "2px" }}>
+                          {car.dropoffDateTime || `${car.dropoffDate || ""} às ${car.dropoffTime || ""}`}
+                        </div>
+                      </div>
+                    </div>
+
+                    {(car.driverName || car.driverDocument) && (
+                      <div style={{ fontSize: "11px", color: "#334155", paddingTop: "4px", borderTop: "1px solid #f1f5f9" }}>
+                        <span><strong>Condutor Principal:</strong> {car.driverName || "Titular"}</span>
+                        {car.driverDocument && <span style={{ marginLeft: "8px" }}>Doc: {car.driverDocument}</span>}
+                      </div>
+                    )}
+
+                    {/* QR Code / Barcode replication */}
+                    {(car.qrCodeData || car.barcodeData || car.codeImageBase64) && (
+                      <div style={{ paddingTop: "6px", borderTop: "1px solid #f1f5f9" }}>
+                        <CodeRenderer
+                          qrCodeData={car.qrCodeData}
+                          barcodeData={car.barcodeData}
+                          barcodeType={car.barcodeType}
+                          codeImageBase64={car.codeImageBase64}
+                          title={`Validação Locadora - ${car.rentalCompany}`}
+                          compact={true}
+                        />
+                      </div>
+                    )}
+
+                    {car.notes && (
+                      <div style={{ fontSize: "11px", color: "#64748b", backgroundColor: "#fef3c7", padding: "6px 8px", borderRadius: "4px", border: "1px solid #fde68a" }}>
+                        ⚠️ {car.notes}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ backgroundColor: "#f8fafc", padding: "8px 10px", borderRadius: "6px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block" }}>Devolução</span>
-                  <strong style={{ color: "#0f172a" }}>{voucher.carRental.dropoffLocation}</strong>
-                  <div style={{ color: "#475569" }}>{voucher.carRental.dropoffDateTime || `${voucher.carRental.dropoffDate || ""} ${voucher.carRental.dropoffTime || ""}`}</div>
-                </div>
-              </div>
+              ))}
             </div>
           </section>
         )}
 
-        {/* INSURANCE SECTION (IF PRESENT) */}
-        {voucher.insurance && (
-          <section style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "14px 16px", backgroundColor: "#f8fafc" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+        {/* INSURANCE SECTION (MULTI-BLOCK SUPPORT) */}
+        {insurancesList.length > 0 && (
+          <section style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
-                Seguro Viagem & Assistência Médica
+                {insurancesList.length > 1 ? `Seguros Viagem (${insurancesList.length} Apólices)` : "Seguro Viagem & Assistência Médica"}
               </div>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46", backgroundColor: "#ecfdf5", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
-                Apólice: {voucher.insurance.policyNumber}
-              </span>
             </div>
 
-            <div style={{ backgroundColor: "#ffffff", padding: "10px 14px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", display: "flex", justifyContent: "space-between" }}>
-              <div>
-                <strong style={{ fontSize: "14px", color: "#0f172a" }}>{voucher.insurance.insurerName}</strong> • {voucher.insurance.planName}
-                <div style={{ color: "#64748b", marginTop: "2px" }}>
-                  Vigência: <strong>{voucher.insurance.coverageStart}</strong> a <strong>{voucher.insurance.coverageEnd}</strong> ({voucher.insurance.destinationArea || "Mundial"})
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {insurancesList.map((ins, index) => (
+                <div
+                  key={ins.id || index}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "12px 14px",
+                    backgroundColor: "#f8fafc",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          backgroundColor: primaryColor,
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          padding: "2px 8px",
+                          borderRadius: "9999px"
+                        }}
+                      >
+                        {insurancesList.length > 1 ? `Seguro #${index + 1}` : "Seguro"}
+                      </span>
+                      <strong style={{ fontSize: "14px", color: "#0f172a" }}>
+                        {ins.insurerName || ins.provider} • {ins.planName}
+                      </strong>
+                    </div>
+                    {ins.policyNumber && (
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46", backgroundColor: "#ecfdf5", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
+                        Apólice: {ins.policyNumber}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ backgroundColor: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                      <div>
+                        <span style={{ color: "#64748b" }}>
+                          Vigência: <strong>{ins.coverageStart || ins.startDate}</strong> a <strong>{ins.coverageEnd || ins.endDate}</strong>
+                        </span>
+                        {ins.destinationArea && <span style={{ marginLeft: "8px", color: "#64748b" }}>({ins.destinationArea})</span>}
+                      </div>
+                      {(ins.emergencyPhone || ins.emergencyPhone24h) && (
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>Emergência 24h: </span>
+                          <span style={{ color: "#059669", fontWeight: 800, fontFamily: "monospace", fontSize: "12px" }}>
+                            {ins.emergencyPhone || ins.emergencyPhone24h}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {(ins.medicalCoverage || ins.baggageCoverage || ins.covidCoverage) && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", fontSize: "11px", color: "#334155", paddingTop: "4px", borderTop: "1px solid #f1f5f9" }}>
+                        {ins.medicalCoverage && <span><strong>DMH (Médica):</strong> {ins.medicalCoverage}</span>}
+                        {ins.covidCoverage && <span><strong>COVID-19:</strong> {ins.covidCoverage}</span>}
+                        {ins.baggageCoverage && <span><strong>Bagagem:</strong> {ins.baggageCoverage}</span>}
+                      </div>
+                    )}
+
+                    {ins.insuredNames && ins.insuredNames.length > 0 && (
+                      <div style={{ paddingTop: "4px", borderTop: "1px dashed #e2e8f0", fontSize: "11px" }}>
+                        <span style={{ color: "#64748b", fontWeight: 700 }}>Segurados: </span>
+                        {ins.insuredNames.join(", ")}
+                      </div>
+                    )}
+
+                    {/* QR Code / Barcode replication */}
+                    {(ins.qrCodeData || ins.barcodeData || ins.codeImageBase64) && (
+                      <div style={{ paddingTop: "6px", borderTop: "1px solid #f1f5f9" }}>
+                        <CodeRenderer
+                          qrCodeData={ins.qrCodeData}
+                          barcodeData={ins.barcodeData}
+                          barcodeType={ins.barcodeType}
+                          codeImageBase64={ins.codeImageBase64}
+                          title={`Validação Apólice - ${ins.insurerName || ins.provider}`}
+                          compact={true}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              {voucher.insurance.emergencyPhone && (
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ fontSize: "10px", color: "#64748b", textTransform: "uppercase", fontWeight: 700, display: "block" }}>Emergência Seguradora</span>
-                  <span style={{ color: "#059669", fontWeight: 800, fontFamily: "monospace", fontSize: "13px" }}>{voucher.insurance.emergencyPhone}</span>
-                </div>
-              )}
+              ))}
             </div>
           </section>
         )}
 
-        {/* TICKETS & ATTRACTIONS SECTION */}
-        {voucher.ticket && (
-          <section style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "14px 16px", backgroundColor: "#f8fafc" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+        {/* TICKETS & ATTRACTIONS SECTION (MULTI-BLOCK SUPPORT) */}
+        {ticketsList.length > 0 && (
+          <section style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" strokeWidth="2.5">
                   <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
                 </svg>
-                Ingresso / Passeio / Atração
+                {ticketsList.length > 1 ? `Ingressos & Atrações (${ticketsList.length} Itens)` : "Ingresso / Passeio / Atração"}
               </div>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "#7e22ce", backgroundColor: "#f3e8ff", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
-                Código: {voucher.ticket.ticketNumberOrCode}
-              </span>
             </div>
-            <div style={{ backgroundColor: "#ffffff", padding: "10px 14px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <strong style={{ fontSize: "14px", color: "#0f172a" }}>{voucher.ticket.attractionName}</strong>
-                  {voucher.ticket.supplierOrPark && <span style={{ color: "#64748b", marginLeft: "6px" }}>({voucher.ticket.supplierOrPark})</span>}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {ticketsList.map((ticket, index) => (
+                <div
+                  key={ticket.id || index}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "12px 14px",
+                    backgroundColor: "#f8fafc",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          backgroundColor: primaryColor,
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          padding: "2px 8px",
+                          borderRadius: "9999px"
+                        }}
+                      >
+                        {ticketsList.length > 1 ? `Ingresso #${index + 1}` : "Ingresso"}
+                      </span>
+                      <strong style={{ fontSize: "14px", color: "#0f172a" }}>
+                        {ticket.attractionName} {ticket.supplierOrPark ? `(${ticket.supplierOrPark})` : ""}
+                      </strong>
+                    </div>
+                    {ticket.ticketNumberOrCode && (
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#7e22ce", backgroundColor: "#f3e8ff", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
+                        Código: {ticket.ticketNumberOrCode}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ backgroundColor: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ backgroundColor: "#fdf4ff", color: "#a21caf", border: "1px solid #f5d0fe", padding: "2px 8px", borderRadius: "4px", fontWeight: 700, fontSize: "11px" }}>
+                        {ticket.ticketType || "Ingresso Padrão"}
+                      </span>
+                      <div style={{ color: "#475569" }}>
+                        <strong>Data:</strong> {ticket.date} {ticket.time ? `às ${ticket.time}` : ""}
+                      </div>
+                    </div>
+
+                    {ticket.locationOrAddress && (
+                      <div style={{ color: "#64748b", fontSize: "11px" }}>
+                        📍 {ticket.locationOrAddress}
+                      </div>
+                    )}
+
+                    {ticket.passengersOrHolders && ticket.passengersOrHolders.length > 0 && (
+                      <div style={{ fontSize: "11px", color: "#334155" }}>
+                        <strong>Titular(es):</strong> {ticket.passengersOrHolders.join(", ")}
+                      </div>
+                    )}
+
+                    {ticket.importantInstructions && (
+                      <div style={{ fontSize: "11px", color: "#64748b", backgroundColor: "#f8fafc", padding: "6px 8px", borderRadius: "4px", border: "1px solid #f1f5f9" }}>
+                        ℹ️ {ticket.importantInstructions}
+                      </div>
+                    )}
+
+                    {/* QR Code / Barcode replication */}
+                    {(ticket.qrCodeData || ticket.barcodeData || ticket.codeImageBase64) && (
+                      <div style={{ paddingTop: "6px", borderTop: "1px solid #f1f5f9" }}>
+                        <CodeRenderer
+                          qrCodeData={ticket.qrCodeData}
+                          barcodeData={ticket.barcodeData}
+                          barcodeType={ticket.barcodeType}
+                          codeImageBase64={ticket.codeImageBase64}
+                          title={`Validação de Acesso - ${ticket.attractionName}`}
+                          compact={true}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <span style={{ backgroundColor: "#fdf4ff", color: "#a21caf", border: "1px solid #f5d0fe", padding: "2px 8px", borderRadius: "4px", fontWeight: 700, fontSize: "11px" }}>
-                  {voucher.ticket.ticketType}
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: "16px", color: "#475569" }}>
-                <span><strong>Data/Hora:</strong> {voucher.ticket.date} {voucher.ticket.time ? `às ${voucher.ticket.time}` : ""}</span>
-                {voucher.ticket.locationOrAddress && <span><strong>Local:</strong> {voucher.ticket.locationOrAddress}</span>}
-              </div>
+              ))}
             </div>
           </section>
         )}
 
-        {/* CRUISE SECTION */}
-        {voucher.cruise && (
-          <section style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "14px 16px", backgroundColor: "#f8fafc" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+        {/* CRUISE SECTION (MULTI-BLOCK SUPPORT) */}
+        {cruisesList.length > 0 && (
+          <section style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0e7490" strokeWidth="2.5">
                   <path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
                   <path d="M19.38 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.94 5.34 2.81 7.76" />
                   <path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6" />
                 </svg>
-                Cruzeiro Marítimo
+                {cruisesList.length > 1 ? `Cruzeiros Marítimos (${cruisesList.length} Reservas)` : "Cruzeiro Marítimo"}
               </div>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "#0e7490", backgroundColor: "#cffafe", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
-                Booking: {voucher.cruise.bookingNumber}
-              </span>
             </div>
-            <div style={{ backgroundColor: "#ffffff", padding: "10px 14px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong style={{ fontSize: "14px", color: "#0f172a" }}>{voucher.cruise.cruiseLine} • {voucher.cruise.shipName}</strong>
-                <span style={{ fontWeight: 700, color: "#0f172a" }}>Cabine: {voucher.cruise.cabinNumber} ({voucher.cruise.cabinCategory})</span>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {cruisesList.map((cruise, index) => (
+                <div
+                  key={cruise.id || index}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "12px 14px",
+                    backgroundColor: "#f8fafc",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          backgroundColor: primaryColor,
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          padding: "2px 8px",
+                          borderRadius: "9999px"
+                        }}
+                      >
+                        {cruisesList.length > 1 ? `Cruzeiro #${index + 1}` : "Cruzeiro"}
+                      </span>
+                      <strong style={{ fontSize: "14px", color: "#0f172a" }}>
+                        {cruise.cruiseLine} • {cruise.shipName}
+                      </strong>
+                    </div>
+                    {cruise.bookingNumber && (
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#0e7490", backgroundColor: "#cffafe", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
+                        Booking: {cruise.bookingNumber}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ backgroundColor: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontWeight: 700, color: "#0f172a" }}>
+                        Cabine: {cruise.cabinNumber} ({cruise.cabinCategory || "Standard"})
+                      </span>
+                      {cruise.mealPlan && (
+                        <span style={{ fontSize: "11px", color: "#065f46", fontWeight: 600 }}>
+                          {cruise.mealPlan}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", color: "#475569" }}>
+                      <div><strong>Embarque:</strong> {cruise.departurePort} ({cruise.departureDate}{cruise.departureTime ? ` às ${cruise.departureTime}` : ""})</div>
+                      <div><strong>Desembarque:</strong> {cruise.arrivalPort} ({cruise.arrivalDate})</div>
+                    </div>
+
+                    {cruise.itinerarySummary && (
+                      <div style={{ fontSize: "11px", color: "#64748b", borderTop: "1px solid #f1f5f9", paddingTop: "4px" }}>
+                        <strong>Roteiro:</strong> {cruise.itinerarySummary}
+                      </div>
+                    )}
+
+                    {/* QR Code / Barcode replication */}
+                    {(cruise.qrCodeData || cruise.barcodeData || cruise.codeImageBase64) && (
+                      <div style={{ paddingTop: "6px", borderTop: "1px solid #f1f5f9" }}>
+                        <CodeRenderer
+                          qrCodeData={cruise.qrCodeData}
+                          barcodeData={cruise.barcodeData}
+                          barcodeType={cruise.barcodeType}
+                          codeImageBase64={cruise.codeImageBase64}
+                          title={`Validação Marítima - ${cruise.cruiseLine}`}
+                          compact={true}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* TRANSFERS SECTION (MULTI-BLOCK SUPPORT) */}
+        {transfersList.length > 0 && (
+          <section style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#0f172a", fontWeight: 800, fontSize: "13px", textTransform: "uppercase" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5">
+                  <path d="M8 6v6" />
+                  <path d="M15 6v6" />
+                  <path d="M2 12h19.6" />
+                  <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.6-.2-1.1-.6-1.5l-2.4-2.5" />
+                  <circle cx="7" cy="18" r="2" />
+                  <circle cx="17" cy="18" r="2" />
+                </svg>
+                {transfersList.length > 1 ? `Traslados & Transfers (${transfersList.length} Trechos)` : "Traslado & Receptivo"}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", color: "#475569" }}>
-                <div><strong>Embarque:</strong> {voucher.cruise.departurePort} ({voucher.cruise.departureDate})</div>
-                <div><strong>Desembarque:</strong> {voucher.cruise.arrivalPort} ({voucher.cruise.arrivalDate})</div>
-              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {transfersList.map((transfer, index) => (
+                <div
+                  key={transfer.id || index}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "12px 14px",
+                    backgroundColor: "#f8fafc",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          backgroundColor: primaryColor,
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          padding: "2px 8px",
+                          borderRadius: "9999px"
+                        }}
+                      >
+                        {transfersList.length > 1 ? `Transfer #${index + 1}` : "Transfer"}
+                      </span>
+                      <strong style={{ fontSize: "14px", color: "#0f172a" }}>
+                        {transfer.serviceType || "Traslado Receptivo"} {transfer.vehicleType ? `(${transfer.vehicleType})` : ""}
+                      </strong>
+                    </div>
+                    {transfer.flightReference && (
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#1d4ed8", backgroundColor: "#dbeafe", padding: "3px 8px", borderRadius: "4px", fontFamily: "monospace" }}>
+                        Voo Ref: {transfer.flightReference}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ backgroundColor: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                      <div style={{ backgroundColor: "#f8fafc", padding: "6px 8px", borderRadius: "4px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#059669", textTransform: "uppercase", display: "block" }}>Origem (Embarque)</span>
+                        <strong>{transfer.pickupLocation}</strong>
+                        <div style={{ color: "#64748b", marginTop: "2px" }}>Data/Hora: {transfer.pickupDateTime}</div>
+                      </div>
+                      <div style={{ backgroundColor: "#f8fafc", padding: "6px 8px", borderRadius: "4px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, color: "#2563eb", textTransform: "uppercase", display: "block" }}>Destino (Desembarque)</span>
+                        <strong>{transfer.dropoffLocation}</strong>
+                      </div>
+                    </div>
+
+                    {transfer.contactPhone && (
+                      <div style={{ fontSize: "11px", color: "#1d4ed8", fontWeight: 700 }}>
+                        📞 Contato Receptivo / Plantão: {transfer.contactPhone}
+                      </div>
+                    )}
+
+                    {/* QR Code / Barcode replication */}
+                    {(transfer.qrCodeData || transfer.barcodeData || transfer.codeImageBase64) && (
+                      <div style={{ paddingTop: "6px", borderTop: "1px solid #f1f5f9" }}>
+                        <CodeRenderer
+                          qrCodeData={transfer.qrCodeData}
+                          barcodeData={transfer.barcodeData}
+                          barcodeType={transfer.barcodeType}
+                          codeImageBase64={transfer.codeImageBase64}
+                          title={`Validação Transfer - ${transfer.serviceType || "Receptivo"}`}
+                          compact={true}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}
