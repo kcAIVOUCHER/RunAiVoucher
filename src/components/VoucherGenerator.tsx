@@ -1370,153 +1370,31 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
                 />
               </div>
 
-              {/* BARRA DE AÇÕES PRINCIPAIS DUPLICADA (No final do bilhete) */}
-              <section className="no-print w-full max-w-[800px] bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 mt-6">
-                <div className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={handleResetVoucher}
-                    className="px-3.5 py-2 bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-700 text-xs font-semibold rounded-xl border border-slate-200 hover:border-rose-300 flex items-center gap-1.5 transition-colors cursor-pointer"
-                    title="Limpar todos os dados e começar um novo voucher em branco"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Limpar / Novo</span>
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditorOpen(true)}
-                    className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                    title="Editar dados e campos do voucher manualmente"
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-slate-600" />
-                    <span>Editar dados</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleCopyWhatsApp}
-                    className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                    title="Copiar mensagem resumida para enviar via WhatsApp ao passageiro"
-                  >
-                    <Share2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>WhatsApp</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextHide = !currentVoucher.hideFareFamily;
-                      setCurrentVoucher(prev => ({
-                        ...prev,
-                        hideFareFamily: nextHide,
-                        flights: prev.flights.map(f => ({
-                          ...f,
-                          fareFamily: f.fareFamily || (nextHide ? "" : "Plus")
-                        }))
-                      }));
-                    }}
-                    className={`px-3 py-2 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-                      !currentVoucher.hideFareFamily
-                        ? "bg-purple-50 text-purple-800 border-purple-300"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                    }`}
-                    title="Alternar exibição da Família Tarifária no voucher e PDF"
-                  >
-                    {!currentVoucher.hideFareFamily ? (
-                      <>
-                        <Eye className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                        <span>Família Tarifária: Visível</span>
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>Família Tarifária: Oculta</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextHide = !currentVoucher.hideBookingClass;
-                      setCurrentVoucher(prev => ({
-                        ...prev,
-                        hideBookingClass: nextHide,
-                        flights: prev.flights.map(f => ({
-                          ...f,
-                          bookingClass: f.bookingClass || (nextHide ? "" : "Y")
-                        }))
-                      }));
-                    }}
-                    className={`px-3 py-2 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
-                      !currentVoucher.hideBookingClass
-                        ? "bg-sky-50 text-sky-800 border-sky-300"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                    }`}
-                    title="Alternar exibição das Classes de Reserva no voucher e PDF"
-                  >
-                    {!currentVoucher.hideBookingClass ? (
-                      <>
-                        <Eye className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                        <span>Classes: Visíveis</span>
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>Classes: Ocultas</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handlePrint}
-                    className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                    title="Abrir diálogo de impressão do navegador (Ctrl+P)"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-slate-600" />
-                    <span>Imprimir</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-xl border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
-                    title="Salvar no histórico da agência"
-                  >
-                    <Save className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Salvar</span>
-                  </button>
-
-                  <div className="hidden sm:block w-px h-6 bg-slate-200 mx-1"></div>
-
-                  <button
-                    type="button"
-                    onClick={handleDownloadRealPdf}
-                    disabled={isGeneratingPdf}
-                    className="w-full sm:w-auto px-6 py-2.5 text-white text-xs font-extrabold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg active:scale-[0.99] cursor-pointer disabled:opacity-60 min-h-[44px]"
-                    style={{
-                      background: "linear-gradient(135deg, #00277A 0%, #152A9D 100%)"
-                    }}
-                    title="Salva automaticamente no histórico e faz download do arquivo PDF oficial para o cliente"
-                  >
-                    {isGeneratingPdf ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-white" />
-                        <span>Gerando PDF...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4 text-white" />
-                        <span>Gerar e salvar PDF</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </section>
+              {/* BOTÃO GERAR E SALVAR PDF NO FINAL DO BILHETE */}
+              <div className="no-print w-full flex justify-center mt-6">
+                <button
+                  type="button"
+                  onClick={handleDownloadRealPdf}
+                  disabled={isGeneratingPdf}
+                  className="w-full sm:w-auto px-8 py-3.5 text-white text-sm font-extrabold rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-md hover:shadow-lg active:scale-[0.99] cursor-pointer disabled:opacity-60 min-h-[48px]"
+                  style={{
+                    background: "linear-gradient(135deg, #00277A 0%, #152A9D 100%)"
+                  }}
+                  title="Salva automaticamente no histórico e faz download do arquivo PDF oficial para o cliente"
+                >
+                  {isGeneratingPdf ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-white" />
+                      <span>Gerando PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5 text-white" />
+                      <span>Gerar e salvar PDF</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </section>
         </>
