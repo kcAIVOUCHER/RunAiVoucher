@@ -72,7 +72,6 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
   const [geminiWarningMsg, setGeminiWarningMsg] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfSuccessMsg, setPdfSuccessMsg] = useState(false);
-  const [isConfigOpen, setIsConfigOpen] = useState<boolean>(false);
 
   // Adaptable Zoom controls for both mobile and desktop
   const [zoomScale, setZoomScale] = useState<number>(1);
@@ -113,9 +112,9 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
     pnr: "",
     issueDate: new Date().toLocaleDateString("pt-BR"),
     agencyId: agency.id,
-    companyId: companies[0]?.id || null,
-    companyName: companies[0]?.name || undefined,
-    companyLogoUrl: companies[0]?.logoUrl || undefined,
+    companyId: null,
+    companyName: undefined,
+    companyLogoUrl: undefined,
     serviceType: "flight",
     passengers: [],
     flights: [],
@@ -133,9 +132,9 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
       otherFees: 0,
       total: 0
     },
-    priceDisplayMode: companies[0]?.defaultPriceDisplay || "sem_valor",
-    hideFareFamily: companies[0]?.hideFareFamilyByDefault ?? true,
-    hideBookingClass: companies[0]?.hideClassByDefault ?? true,
+    priceDisplayMode: agency.defaultPriceDisplay || "apenas_total",
+    hideFareFamily: agency.hideFareFamilyByDefault ?? false,
+    hideBookingClass: agency.hideClassByDefault ?? true,
     status: "emitted",
     notes: agency.footerNotes || "",
     emergencyContact: agency.emergencyPhone || agency.phone,
@@ -918,9 +917,8 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
         </section>
       ) : (
         <>
-          {/* BARRA DE AÇÕES PRINCIPAIS E HIERARQUIA VISUAL (Omitted in Print) */}
+          {/* BARRA DE AÇÕES PRINCIPAIS (Topo) */}
           <section className="no-print bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
-            {/* Lado Esquerdo: Ação Destrutiva Isolada (Limpar / Novo) */}
             <div className="flex items-center">
               <button
                 type="button"
@@ -933,7 +931,6 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
               </button>
             </div>
 
-            {/* Lado Direito: Ações Secundárias + Ação Principal Hero */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
               <button
                 type="button"
@@ -955,7 +952,6 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
                 <span>WhatsApp</span>
               </button>
 
-              {/* Botões de Ação Rápida: Visibilidade de Tarifas e Classes */}
               <button
                 type="button"
                 onClick={() => {
@@ -974,7 +970,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
                     ? "bg-purple-50 text-purple-800 border-purple-300"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                 }`}
-                title="Clique para alternar a exibição da Família Tarifária (Light, Plus, etc.) no voucher e PDF"
+                title="Alternar exibição da Família Tarifária no voucher e PDF"
               >
                 {!currentVoucher.hideFareFamily ? (
                   <>
@@ -1007,7 +1003,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
                     ? "bg-sky-50 text-sky-800 border-sky-300"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                 }`}
-                title="Clique para alternar a exibição das Classes de Reserva (Y, Q, etc.) no voucher e PDF"
+                title="Alternar exibição das Classes de Reserva no voucher e PDF"
               >
                 {!currentVoucher.hideBookingClass ? (
                   <>
@@ -1044,7 +1040,6 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
 
               <div className="hidden sm:block w-px h-6 bg-slate-200 mx-1"></div>
 
-              {/* AÇÃO PRINCIPAL / HERO: Gerar e salvar PDF */}
               <button
                 type="button"
                 onClick={handleDownloadRealPdf}
@@ -1091,29 +1086,120 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
             </div>
           )}
 
-          {/* CONFIGURAÇÕES DO VOUCHER (Seção recolhível em cards, limpa e independente) */}
-          <section className="no-print bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-            {/* Header da Seção: Título limpo e resumo de regras ativas */}
-            <div
-              onClick={() => setIsConfigOpen(!isConfigOpen)}
-              className="p-4 bg-slate-50/70 hover:bg-slate-100/70 transition-colors flex items-center justify-between cursor-pointer border-b border-slate-200"
-            >
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                  <Settings className="w-4 h-4 text-sky-600" />
-                  <span>Configurações do voucher</span>
+          {/* BLOCOS DE CONFIGURAÇÃO (Sempre visíveis, estilo Damilai) */}
+          <section className="no-print bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                <Settings className="w-4 h-4 text-sky-600" />
+                <span>Personalizar Regras do Bilhete</span>
+              </div>
+              {appliedDefaultsFeedback && (
+                <span className="text-xs font-bold text-sky-800 bg-sky-50 px-3 py-1 rounded-lg border border-sky-200 flex items-center gap-1.5 animate-fade-in">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" /> {appliedDefaultsFeedback}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* BLOCO EMPRESA */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-sky-600" />
+                    Bloco Empresa
+                  </span>
+                  {selectedCompany && (
+                    <span className="text-[10px] text-sky-700 font-semibold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
+                      Vinculada
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-600 font-medium flex-wrap">
-                  <span className="bg-white px-2.5 py-0.5 rounded-lg border border-slate-200 text-slate-700 font-semibold">
-                    🏢 {selectedCompany?.tradeName || selectedCompany?.name || "Sem empresa vinculada"}
-                  </span>
-                  <span className="bg-white px-2.5 py-0.5 rounded-lg border border-slate-200 text-slate-700 font-semibold">
-                    💳 Valores: {currentVoucher.priceDisplayMode === "sem_valor" ? "Sem valor" : currentVoucher.priceDisplayMode === "apenas_total" ? "Apenas total" : "Discriminado"}
-                  </span>
+                <div className="relative">
+                  <select
+                    value={currentVoucher.companyId || "none"}
+                    onChange={(e) => handleCompanyChange(e.target.value)}
+                    className="w-full pl-2.5 pr-7 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500 cursor-pointer appearance-none"
+                  >
+                    <option value="none">Sem Empresa (Padrão Agência)</option>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        🏢 {c.tradeName || c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                {onNavigateToCompanies && (
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={onNavigateToCompanies}
+                    className="text-[11px] text-sky-600 hover:text-sky-800 font-semibold block pt-0.5"
+                  >
+                    + Gerenciar empresas cadastradas
+                  </button>
+                )}
+              </div>
+
+              {/* BLOCO VALORES */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                    Bloco Valores
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 bg-slate-200/70 p-1 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentVoucher({ ...currentVoucher, priceDisplayMode: "sem_valor" })}
+                    className={`py-1.5 px-1 text-[11px] rounded-md font-bold transition-all text-center cursor-pointer ${
+                      currentVoucher.priceDisplayMode === "sem_valor"
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                    }`}
+                  >
+                    Sem valor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentVoucher({ ...currentVoucher, priceDisplayMode: "apenas_total" })}
+                    className={`py-1.5 px-1 text-[11px] rounded-md font-bold transition-all text-center cursor-pointer ${
+                      currentVoucher.priceDisplayMode === "apenas_total"
+                        ? "bg-sky-700 text-white shadow-xs"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                    }`}
+                  >
+                    Apenas total
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentVoucher({ ...currentVoucher, priceDisplayMode: "discriminado" })}
+                    className={`py-1.5 px-1 text-[11px] rounded-md font-bold transition-all text-center cursor-pointer ${
+                      currentVoucher.priceDisplayMode === "discriminado"
+                        ? "bg-emerald-700 text-white shadow-xs"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                    }`}
+                  >
+                    Discriminado
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  Controla exibição de preços e taxas no bilhete.
+                </p>
+              </div>
+
+              {/* BLOCO FAMÍLIAS E CLASSES */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5 text-purple-600" />
+                    Bloco Famílias e Classes
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
                       const nextHide = !currentVoucher.hideFareFamily;
                       setCurrentVoucher(prev => ({
                         ...prev,
@@ -1124,15 +1210,28 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
                         }))
                       }));
                     }}
-                    className="bg-white hover:bg-purple-50 px-2.5 py-0.5 rounded-lg border border-slate-200 text-slate-700 font-semibold cursor-pointer transition-colors"
-                    title="Clique para alternar visibilidade de tarifas"
+                    className={`w-full py-1.5 px-2.5 text-xs rounded-xl font-bold border flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs ${
+                      !currentVoucher.hideFareFamily
+                        ? "bg-purple-50 text-purple-800 border-purple-300"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
                   >
-                    ✈️ Tarifas: {!currentVoucher.hideFareFamily ? "Visíveis" : "Ocultas"}
+                    {!currentVoucher.hideFareFamily ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                        <span>Família Tarifária: Visível</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Família Tarifária: Oculta</span>
+                      </>
+                    )}
                   </button>
+
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={() => {
                       const nextHide = !currentVoucher.hideBookingClass;
                       setCurrentVoucher(prev => ({
                         ...prev,
@@ -1143,225 +1242,31 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
                         }))
                       }));
                     }}
-                    className="bg-white hover:bg-sky-50 px-2.5 py-0.5 rounded-lg border border-slate-200 text-slate-700 font-semibold cursor-pointer transition-colors"
-                    title="Clique para alternar visibilidade de classes"
+                    className={`w-full py-1.5 px-2.5 text-xs rounded-xl font-bold border flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs ${
+                      !currentVoucher.hideBookingClass
+                        ? "bg-sky-50 text-sky-800 border-sky-300"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
                   >
-                    🎫 Classes: {!currentVoucher.hideBookingClass ? "Visíveis" : "Ocultas"}
+                    {!currentVoucher.hideBookingClass ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                        <span>Classes de Reserva: Visíveis</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Classes de Reserva: Ocultas</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
-
-              <button
-                type="button"
-                className="text-xs font-bold text-sky-700 hover:text-sky-900 flex items-center gap-1 shrink-0 ml-2"
-              >
-                <span>{isConfigOpen ? "Recolher opções" : "Personalizar regras"}</span>
-                {isConfigOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
             </div>
-
-            {/* Painel Expandido: 4 Cards Limpos e Funcionais */}
-            {isConfigOpen && (
-              <div className="p-5 space-y-4 animate-fade-in bg-white">
-                {appliedDefaultsFeedback && (
-                  <div className="flex items-center gap-2 p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0" />
-                    <span>{appliedDefaultsFeedback}</span>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                  {/* Card 1: Empresa */}
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-sky-600" />
-                        Empresa
-                      </span>
-                      {selectedCompany && (
-                        <span className="text-[10px] text-sky-700 font-semibold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
-                          Vinculada
-                        </span>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <select
-                        value={currentVoucher.companyId || "none"}
-                        onChange={(e) => handleCompanyChange(e.target.value)}
-                        className="w-full pl-2.5 pr-7 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500 cursor-pointer appearance-none"
-                      >
-                        <option value="none">Sem Empresa (Apenas Agência)</option>
-                        {companies.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            🏢 {c.tradeName || c.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-                    {onNavigateToCompanies && (
-                      <button
-                        type="button"
-                        onClick={onNavigateToCompanies}
-                        className="text-[11px] text-sky-600 hover:text-sky-800 font-semibold block pt-1"
-                      >
-                        + Gerenciar empresas cadastradas
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Card 2: Exibição de valores */}
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                        Exibição de valores
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-1 bg-slate-200/70 p-1 rounded-lg">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentVoucher({ ...currentVoucher, priceDisplayMode: "sem_valor" })}
-                        className={`py-1.5 px-1 text-[11px] rounded-md font-bold transition-all text-center cursor-pointer ${
-                          currentVoucher.priceDisplayMode === "sem_valor"
-                            ? "bg-slate-900 text-white shadow-xs"
-                            : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-                        }`}
-                      >
-                        Sem valor
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentVoucher({ ...currentVoucher, priceDisplayMode: "apenas_total" })}
-                        className={`py-1.5 px-1 text-[11px] rounded-md font-bold transition-all text-center cursor-pointer ${
-                          currentVoucher.priceDisplayMode === "apenas_total"
-                            ? "bg-sky-700 text-white shadow-xs"
-                            : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-                        }`}
-                      >
-                        Apenas total
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentVoucher({ ...currentVoucher, priceDisplayMode: "discriminado" })}
-                        className={`py-1.5 px-1 text-[11px] rounded-md font-bold transition-all text-center cursor-pointer ${
-                          currentVoucher.priceDisplayMode === "discriminado"
-                            ? "bg-emerald-700 text-white shadow-xs"
-                            : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-                        }`}
-                      >
-                        Discriminado
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-slate-500">
-                      Controla se os preços e taxas aparecem no PDF final.
-                    </p>
-                  </div>
-
-                  {/* Card 3: Tarifas aéreas */}
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <ShieldAlert className="w-3.5 h-3.5 text-purple-600" />
-                        Tarifas aéreas
-                      </span>
-                    </div>
-                    <div className="space-y-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextHide = !currentVoucher.hideFareFamily;
-                          setCurrentVoucher(prev => ({
-                            ...prev,
-                            hideFareFamily: nextHide,
-                            flights: prev.flights.map(f => ({
-                              ...f,
-                              fareFamily: f.fareFamily || (nextHide ? "" : "Plus")
-                            }))
-                          }));
-                        }}
-                        className={`w-full py-2 px-2.5 text-xs rounded-xl font-bold border flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs ${
-                          !currentVoucher.hideFareFamily
-                            ? "bg-purple-50 text-purple-800 border-purple-300"
-                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                        }`}
-                      >
-                        {!currentVoucher.hideFareFamily ? (
-                          <>
-                            <Eye className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                            <span>Família tarifária: Visível</span>
-                          </>
-                        ) : (
-                          <>
-                            <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span>Família tarifária: Oculta</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextHide = !currentVoucher.hideBookingClass;
-                          setCurrentVoucher(prev => ({
-                            ...prev,
-                            hideBookingClass: nextHide,
-                            flights: prev.flights.map(f => ({
-                              ...f,
-                              bookingClass: f.bookingClass || (nextHide ? "" : "Y")
-                            }))
-                          }));
-                        }}
-                        className={`w-full py-2 px-2.5 text-xs rounded-xl font-bold border flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs ${
-                          !currentVoucher.hideBookingClass
-                            ? "bg-sky-50 text-sky-800 border-sky-300"
-                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                        }`}
-                      >
-                        {!currentVoucher.hideBookingClass ? (
-                          <>
-                            <Eye className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                            <span>Classes de Reserva: Visíveis</span>
-                          </>
-                        ) : (
-                          <>
-                            <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span>Classes de Reserva: Ocultas</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Card 4: Preferências do voucher */}
-                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <Settings className="w-3.5 h-3.5 text-slate-600" />
-                        Preferências
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-semibold">
-                        Moeda: {currentVoucher.pricing.currency || "BRL"}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-normal">
-                      Emitido por <strong>{agency.tradeName || agency.name}</strong>. Plantão: {agency.emergencyPhone || agency.phone || "Agência"}.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditorOpen(true)}
-                      className="text-[11px] text-sky-600 hover:text-sky-800 font-bold block pt-1"
-                    >
-                      Editar campos detalhados ↗
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </section>
 
           {/* 3. LIVE WYSIWYG VOUCHER DOCUMENT PREVIEW WITH ADAPTABLE ZOOM */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs bg-slate-100/90 p-3 rounded-xl border border-slate-200">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
@@ -1446,7 +1351,7 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
             {/* Scalable Voucher Document with Adaptable Zoom */}
             <div
               ref={previewContainerRef}
-              className="w-full overflow-x-auto pb-4 transition-all duration-150 flex flex-col items-center"
+              className="w-full overflow-x-auto pb-4 transition-all duration-150 flex flex-col items-center space-y-4"
             >
               <div
                 style={{
@@ -1464,6 +1369,154 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
                   company={selectedCompany}
                 />
               </div>
+
+              {/* BARRA DE AÇÕES PRINCIPAIS DUPLICADA (No final do bilhete) */}
+              <section className="no-print w-full max-w-[800px] bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 mt-6">
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={handleResetVoucher}
+                    className="px-3.5 py-2 bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-700 text-xs font-semibold rounded-xl border border-slate-200 hover:border-rose-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Limpar todos os dados e começar um novo voucher em branco"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Limpar / Novo</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditorOpen(true)}
+                    className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                    title="Editar dados e campos do voucher manualmente"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Editar dados</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyWhatsApp}
+                    className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                    title="Copiar mensagem resumida para enviar via WhatsApp ao passageiro"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>WhatsApp</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextHide = !currentVoucher.hideFareFamily;
+                      setCurrentVoucher(prev => ({
+                        ...prev,
+                        hideFareFamily: nextHide,
+                        flights: prev.flights.map(f => ({
+                          ...f,
+                          fareFamily: f.fareFamily || (nextHide ? "" : "Plus")
+                        }))
+                      }));
+                    }}
+                    className={`px-3 py-2 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                      !currentVoucher.hideFareFamily
+                        ? "bg-purple-50 text-purple-800 border-purple-300"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
+                    title="Alternar exibição da Família Tarifária no voucher e PDF"
+                  >
+                    {!currentVoucher.hideFareFamily ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                        <span>Família Tarifária: Visível</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Família Tarifária: Oculta</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextHide = !currentVoucher.hideBookingClass;
+                      setCurrentVoucher(prev => ({
+                        ...prev,
+                        hideBookingClass: nextHide,
+                        flights: prev.flights.map(f => ({
+                          ...f,
+                          bookingClass: f.bookingClass || (nextHide ? "" : "Y")
+                        }))
+                      }));
+                    }}
+                    className={`px-3 py-2 text-xs font-bold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                      !currentVoucher.hideBookingClass
+                        ? "bg-sky-50 text-sky-800 border-sky-300"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    }`}
+                    title="Alternar exibição das Classes de Reserva no voucher e PDF"
+                  >
+                    {!currentVoucher.hideBookingClass ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                        <span>Classes: Visíveis</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Classes: Ocultas</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                    title="Abrir diálogo de impressão do navegador (Ctrl+P)"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Imprimir</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-xl border border-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Salvar no histórico da agência"
+                  >
+                    <Save className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Salvar</span>
+                  </button>
+
+                  <div className="hidden sm:block w-px h-6 bg-slate-200 mx-1"></div>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadRealPdf}
+                    disabled={isGeneratingPdf}
+                    className="w-full sm:w-auto px-6 py-2.5 text-white text-xs font-extrabold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg active:scale-[0.99] cursor-pointer disabled:opacity-60 min-h-[44px]"
+                    style={{
+                      background: "linear-gradient(135deg, #00277A 0%, #152A9D 100%)"
+                    }}
+                    title="Salva automaticamente no histórico e faz download do arquivo PDF oficial para o cliente"
+                  >
+                    {isGeneratingPdf ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        <span>Gerando PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 text-white" />
+                        <span>Gerar e salvar PDF</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </section>
             </div>
           </section>
         </>
