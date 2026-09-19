@@ -35,7 +35,11 @@ import {
   CheckSquare,
   Square,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Plus,
+  Pencil,
+  Copy,
+  Check
 } from "lucide-react";
 import {
   AgencyProfile,
@@ -81,12 +85,38 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
   const [formPhone, setFormPhone] = useState("");
   const [formPlanId, setFormPlanId] = useState("plan-pro");
   const [formMaxUsers, setFormMaxUsers] = useState(5);
+  const [formMaxVouchersPerMonth, setFormMaxVouchersPerMonth] = useState<number>(-1);
   const [formMonthlyFee, setFormMonthlyFee] = useState<number>(389.00);
   const [formStatus, setFormStatus] = useState<SubscriptionStatus>("active");
   const [formBillingCycle, setFormBillingCycle] = useState<BillingCycle>("monthly");
   const [formNextDueDate, setFormNextDueDate] = useState("2026-10-10");
   const [formNotes, setFormNotes] = useState("");
   const [isSavingAgency, setIsSavingAgency] = useState(false);
+
+  // Plan Management Modal State
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<SaasPlan | null>(null);
+  const [planFormName, setPlanFormName] = useState("");
+  const [planFormDescription, setPlanFormDescription] = useState("");
+  const [planFormBasePrice, setPlanFormBasePrice] = useState<number>(299);
+  const [planFormBaseUsers, setPlanFormBaseUsers] = useState<number>(3);
+  const [planFormPricePerExtraUser, setPlanFormPricePerExtraUser] = useState<number>(39);
+  const [planFormMaxVouchersPerMonth, setPlanFormMaxVouchersPerMonth] = useState<number>(-1);
+  const [planFormFeatures, setPlanFormFeatures] = useState<string[]>([]);
+  const [planFormFeatureInput, setPlanFormFeatureInput] = useState("");
+  const [planFormIsPopular, setPlanFormIsPopular] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+
+  // Settings Tab (Mercado Pago & Itaú PJ) State
+  const [mpAccessToken, setMpAccessToken] = useState("");
+  const [mpPublicKey, setMpPublicKey] = useState("");
+  const [itauPixKey, setItauPixKey] = useState("");
+  const [itauBeneficiaryName, setItauBeneficiaryName] = useState("");
+  const [itauBankInfo, setItauBankInfo] = useState("");
+  const [supportWhatsapp, setSupportWhatsapp] = useState("");
+  const [delinquencyDaysTolerance, setDelinquencyDaysTolerance] = useState(3);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsSaveSuccess, setSettingsSaveSuccess] = useState(false);
 
   const getAuthHeaders = () => {
     const email = user?.email || auth.currentUser?.email || "kcarrascosa.comercial@gmail.com";
@@ -112,7 +142,17 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
       if (agenciesRes.ok) setAgencies(await agenciesRes.json());
       if (invoicesRes.ok) setInvoices(await invoicesRes.json());
       if (plansRes.ok) setPlans(await plansRes.json());
-      if (settingsRes.ok) setPlatformSettings(await settingsRes.json());
+      if (settingsRes.ok) {
+        const setJson = await settingsRes.json();
+        setPlatformSettings(setJson);
+        setMpAccessToken(setJson.mercadopagoAccessToken || "");
+        setMpPublicKey(setJson.mercadopagoPublicKey || "");
+        setItauPixKey(setJson.itauPixKey || "54.892.120/0001-44");
+        setItauBeneficiaryName(setJson.itauBeneficiaryName || "Romamia Viagens e Turismo Ltda (AiVoucher)");
+        setItauBankInfo(setJson.itauBankInfo || "Banco Itaú Unibanco S.A. (341) - Agência 0365 - CC 98234-1");
+        setSupportWhatsapp(setJson.supportWhatsapp || "5511999999999");
+        setDelinquencyDaysTolerance(setJson.delinquencyDaysTolerance ?? 3);
+      }
     } catch (err) {
       console.error("Error loading SaaS Master data:", err);
     } finally {
@@ -124,10 +164,10 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
     loadData();
   }, []);
 
-  const getPlans = () => plans.length > 0 ? plans : [
-    { id: "plan-starter", name: "Starter Agência", basePrice: 199.00, baseUsers: 2, pricePerExtraUser: 49.00 },
-    { id: "plan-pro", name: "Profissional Corp", basePrice: 389.00, baseUsers: 5, pricePerExtraUser: 39.00 },
-    { id: "plan-enterprise", name: "Enterprise Corporate", basePrice: 890.00, baseUsers: 15, pricePerExtraUser: 29.00 }
+  const getPlans = (): SaasPlan[] => plans.length > 0 ? plans : [
+    { id: "plan-starter", name: "Starter Agência", description: "Para agências iniciantes", basePrice: 199.00, baseUsers: 2, pricePerExtraUser: 49.00, maxVouchersPerMonth: 50, features: [] },
+    { id: "plan-pro", name: "Profissional Corp", description: "Para agências em expansão", basePrice: 389.00, baseUsers: 5, pricePerExtraUser: 39.00, maxVouchersPerMonth: 150, features: [], isPopular: true },
+    { id: "plan-enterprise", name: "Enterprise Corporate", description: "Para grandes operadoras", basePrice: 890.00, baseUsers: 15, pricePerExtraUser: 29.00, maxVouchersPerMonth: -1, features: [] }
   ];
 
   // Recalculate fee automatically when plan or users change in form
@@ -140,6 +180,7 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
       const extra = Math.max(0, users - selectedPlan.baseUsers);
       const calcFee = selectedPlan.basePrice + extra * selectedPlan.pricePerExtraUser;
       setFormMonthlyFee(calcFee);
+      setFormMaxVouchersPerMonth(selectedPlan.maxVouchersPerMonth ?? -1);
     }
   };
 
@@ -164,6 +205,7 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
     setFormPhone(agency.phone || "");
     setFormPlanId(agency.subscription?.planId || "plan-pro");
     setFormMaxUsers(agency.subscription?.maxUsers || 5);
+    setFormMaxVouchersPerMonth(agency.subscription?.maxVouchersPerMonth ?? -1);
     setFormMonthlyFee(Number(agency.subscription?.monthlyFee) || 389.00);
     setFormStatus(agency.subscription?.status || "active");
     setFormBillingCycle(agency.subscription?.billingCycle || "monthly");
@@ -180,9 +222,11 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
     setFormMasterEmail("");
     setFormPassword("");
     setFormPhone("");
-    setFormPlanId("plan-pro");
-    setFormMaxUsers(5);
-    setFormMonthlyFee(389.00);
+    const defaultPlan = getPlans()[0];
+    setFormPlanId(defaultPlan?.id || "plan-pro");
+    setFormMaxUsers(defaultPlan?.baseUsers || 5);
+    setFormMaxVouchersPerMonth(defaultPlan?.maxVouchersPerMonth ?? -1);
+    setFormMonthlyFee(defaultPlan?.basePrice || 389.00);
     setFormStatus("active");
     setFormBillingCycle("monthly");
     const nextMonth = new Date();
@@ -190,6 +234,160 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
     setFormNextDueDate(nextMonth.toISOString().split("T")[0]);
     setFormNotes("");
     setIsAgencyModalOpen(true);
+  };
+
+  // Plan CRUD handlers
+  const handleOpenCreatePlan = () => {
+    setEditingPlan(null);
+    setPlanFormName("");
+    setPlanFormDescription("");
+    setPlanFormBasePrice(299);
+    setPlanFormBaseUsers(3);
+    setPlanFormPricePerExtraUser(39);
+    setPlanFormMaxVouchersPerMonth(-1);
+    setPlanFormFeatures([
+      "Leitura Inteligente de Vouchers com IA",
+      "Emissão de Espelho e PDF Customizado",
+      "Suporte via WhatsApp e E-mail"
+    ]);
+    setPlanFormFeatureInput("");
+    setPlanFormIsPopular(false);
+    setIsPlanModalOpen(true);
+  };
+
+  const handleOpenEditPlan = (plan: SaasPlan) => {
+    setEditingPlan(plan);
+    setPlanFormName(plan.name);
+    setPlanFormDescription(plan.description);
+    setPlanFormBasePrice(plan.basePrice);
+    setPlanFormBaseUsers(plan.baseUsers);
+    setPlanFormPricePerExtraUser(plan.pricePerExtraUser);
+    setPlanFormMaxVouchersPerMonth(plan.maxVouchersPerMonth ?? -1);
+    setPlanFormFeatures(plan.features || []);
+    setPlanFormFeatureInput("");
+    setPlanFormIsPopular(!!plan.isPopular);
+    setIsPlanModalOpen(true);
+  };
+
+  const handleAddFeatureToPlan = () => {
+    if (!planFormFeatureInput.trim()) return;
+    setPlanFormFeatures([...planFormFeatures, planFormFeatureInput.trim()]);
+    setPlanFormFeatureInput("");
+  };
+
+  const handleRemoveFeatureFromPlan = (index: number) => {
+    setPlanFormFeatures(planFormFeatures.filter((_, i) => i !== index));
+  };
+
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!planFormName.trim()) {
+      alert("Por favor, preencha o nome do plano.");
+      return;
+    }
+
+    setIsSavingPlan(true);
+    try {
+      const payload = {
+        name: planFormName.trim(),
+        description: planFormDescription.trim() || `Plano com ${planFormBaseUsers} usuários e ${planFormMaxVouchersPerMonth === -1 ? 'PDFs ilimitados' : planFormMaxVouchersPerMonth + ' PDFs/mês'}.`,
+        basePrice: Number(planFormBasePrice),
+        baseUsers: Number(planFormBaseUsers),
+        pricePerExtraUser: Number(planFormPricePerExtraUser),
+        maxVouchersPerMonth: Number(planFormMaxVouchersPerMonth),
+        features: planFormFeatures.length > 0 ? planFormFeatures : ["Leitura com IA", "Emissão de PDF"],
+        isPopular: planFormIsPopular
+      };
+
+      const url = editingPlan ? `/api/saas/plans/${editingPlan.id}` : "/api/saas/plans";
+      const method = editingPlan ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setIsPlanModalOpen(false);
+        await loadData();
+        alert(editingPlan ? "Plano atualizado com sucesso!" : "Novo plano criado com sucesso!");
+      } else {
+        const err = await res.json().catch(() => ({ error: "Erro ao salvar plano" }));
+        alert(`Erro: ${err.error}`);
+      }
+    } catch (err) {
+      console.error("Error saving plan:", err);
+      alert("Erro de conexão ao salvar plano.");
+    } finally {
+      setIsSavingPlan(false);
+    }
+  };
+
+  const handleDeletePlan = async (plan: SaasPlan) => {
+    const linkedAgencies = agencies.filter((a) => a.subscription?.planId === plan.id);
+    if (linkedAgencies.length > 0) {
+      alert(`Não é possível excluir o plano "${plan.name}" porque existem ${linkedAgencies.length} agência(s) vinculada(s) a ele.`);
+      return;
+    }
+
+    if (!window.confirm(`Tem certeza que deseja excluir o plano "${plan.name}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/saas/plans/${plan.id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+
+      if (res.ok) {
+        await loadData();
+        alert("Plano excluído com sucesso!");
+      } else {
+        const err = await res.json().catch(() => ({ error: "Erro ao excluir plano" }));
+        alert(`Erro: ${err.error}`);
+      }
+    } catch (err) {
+      console.error("Error deleting plan:", err);
+      alert("Erro de conexão ao excluir plano.");
+    }
+  };
+
+  // Save Billing Settings (Mercado Pago & Itaú PJ)
+  const handleSaveBillingSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    try {
+      const payload = {
+        mercadopagoAccessToken: mpAccessToken.trim(),
+        mercadopagoPublicKey: mpPublicKey.trim(),
+        itauPixKey: itauPixKey.trim(),
+        itauBeneficiaryName: itauBeneficiaryName.trim(),
+        itauBankInfo: itauBankInfo.trim(),
+        supportWhatsapp: supportWhatsapp.trim(),
+        delinquencyDaysTolerance: Number(delinquencyDaysTolerance) || 3
+      };
+
+      const res = await fetch("/api/saas/settings", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setPlatformSettings(await res.json());
+        setSettingsSaveSuccess(true);
+        setTimeout(() => setSettingsSaveSuccess(false), 3500);
+      } else {
+        alert("Erro ao salvar configurações de cobrança.");
+      }
+    } catch (err) {
+      console.error("Error saving billing settings:", err);
+      alert("Erro de conexão ao salvar configurações.");
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const handleSaveAgency = async (e: React.FormEvent) => {
@@ -221,6 +419,7 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
         status: formStatus,
         billingCycle: formBillingCycle,
         maxUsers: Number(formMaxUsers),
+        maxVouchersPerMonth: Number(formMaxVouchersPerMonth),
         monthlyFee: Number(formMonthlyFee),
         nextDueDate: formNextDueDate,
         notes: formNotes.trim()
@@ -1067,53 +1266,121 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
       {/* TAB 3: SAAS PLANS CONFIGURATION                               */}
       {/* ------------------------------------------------------------- */}
       {activeMasterTab === "plans" && (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Header with New Plan Action */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+            <div>
+              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Layers className="w-5 h-5 text-sky-600" />
+                Planos de Assinatura & Cotas de Operação
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Configure valores, quantidade de acessos (usuários) e limite mensal de emissão de PDFs para cada categoria de agência.
+              </p>
+            </div>
+            <button
+              onClick={handleOpenCreatePlan}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              Criar Novo Plano
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {plans.map((plan) => (
-              <div
-                key={plan.id}
-                className={`bg-white border rounded-2xl p-6 shadow-xs flex flex-col justify-between ${
-                  plan.isPopular ? "border-sky-500 ring-2 ring-sky-500/20" : "border-slate-200"
-                }`}
-              >
-                <div className="space-y-4">
-                  {plan.isPopular && (
-                    <span className="px-2.5 py-0.5 bg-sky-100 text-sky-800 rounded-full text-[10px] font-bold uppercase tracking-wider inline-block">
-                      Mais Contratado pelas Agências
-                    </span>
-                  )}
-                  <div>
-                    <h3 className="text-lg font-extrabold text-slate-900">{plan.name}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{plan.description}</p>
-                  </div>
-
-                  <div className="border-t border-b border-slate-100 py-3">
-                    <div className="text-2xl font-black text-slate-900">
-                      {Number(plan.basePrice).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                      <span className="text-xs font-normal text-slate-500">/mês</span>
+            {plans.map((plan) => {
+              const subscribedCount = agencies.filter((a) => a.subscription?.planId === plan.id).length;
+              return (
+                <div
+                  key={plan.id}
+                  className={`bg-white border rounded-2xl p-6 shadow-xs flex flex-col justify-between transition-all hover:shadow-md ${
+                    plan.isPopular ? "border-sky-500 ring-2 ring-sky-500/20" : "border-slate-200"
+                  }`}
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        {plan.isPopular && (
+                          <span className="px-2.5 py-0.5 bg-sky-100 text-sky-800 rounded-full text-[10px] font-bold uppercase tracking-wider inline-block mb-1.5">
+                            Mais Contratado
+                          </span>
+                        )}
+                        <h3 className="text-lg font-black text-slate-900">{plan.name}</h3>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditPlan(plan)}
+                          title="Editar Plano"
+                          className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlan(plan)}
+                          title="Excluir Plano"
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
-                      Incluso: <strong>{plan.baseUsers} usuários</strong> • Extra: <strong>R$ {plan.pricePerExtraUser}/usuário</strong>
-                    </p>
+
+                    <p className="text-xs text-slate-500 line-clamp-2">{plan.description}</p>
+
+                    <div className="border-t border-b border-slate-100 py-3">
+                      <div className="text-2xl font-black text-slate-900">
+                        {Number(plan.basePrice).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        <span className="text-xs font-normal text-slate-500">/mês</span>
+                      </div>
+                    </div>
+
+                    {/* Operational Limits Grid */}
+                    <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Acessos Inclusos</span>
+                        <span className="font-extrabold text-slate-800 flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5 text-sky-600" />
+                          {plan.baseUsers} {plan.baseUsers === 1 ? "usuário" : "usuários"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Limite de PDFs</span>
+                        <span className="font-extrabold text-slate-800 flex items-center gap-1">
+                          <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                          {plan.maxVouchersPerMonth === -1 || !plan.maxVouchersPerMonth ? "Ilimitados" : `${plan.maxVouchersPerMonth}/mês`}
+                        </span>
+                      </div>
+                      <div className="col-span-2 pt-1 border-t border-slate-200/60 text-slate-500">
+                        Usuário adicional: <strong className="text-slate-700">R$ {plan.pricePerExtraUser}/mês</strong>
+                      </div>
+                    </div>
+
+                    {/* Features List */}
+                    <ul className="space-y-2 text-xs text-slate-700 pt-1">
+                      {plan.features.map((feat, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
 
-                  <ul className="space-y-2 text-xs text-slate-700">
-                    {plan.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="pt-6">
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs text-slate-500">
-                    {agencies.filter((a) => a.subscription?.planId === plan.id).length} agências assinantes deste plano
+                  <div className="pt-6 space-y-3">
+                    <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs text-slate-500 font-medium">
+                      <strong>{subscribedCount}</strong> {subscribedCount === 1 ? "agência assinante" : "agências assinantes"}
+                    </div>
+                    <button
+                      onClick={() => handleOpenEditPlan(plan)}
+                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Editar Parâmetros do Plano
+                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -1283,7 +1550,7 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
                   Configuração do Plano & Mensalidade
                 </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                       Plano Base
@@ -1317,7 +1584,22 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
 
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Valor da Mensalidade (R$) *
+                      Limite de PDFs/Mês
+                    </label>
+                    <input
+                      type="number"
+                      min={-1}
+                      value={formMaxVouchersPerMonth}
+                      onChange={(e) => setFormMaxVouchersPerMonth(parseInt(e.target.value) || -1)}
+                      placeholder="-1 para Ilimitado"
+                      className="w-full text-xs px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-hidden focus:border-sky-500 font-bold"
+                    />
+                    <span className="text-[10px] text-slate-400">-1 = Ilimitado</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Valor Mensalidade (R$) *
                     </label>
                     <input
                       type="number"
@@ -1687,6 +1969,409 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
                 </div>
               </div>
             </div>
+
+            {/* Billing & Payment Integrations (Mercado Pago & Itaú PJ) */}
+            <form onSubmit={handleSaveBillingSettings} className="border border-slate-200 rounded-xl p-6 bg-white shadow-xs space-y-6 mt-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                    Gestão de Cobrança & Pagamentos (Mercado Pago + Itaú PJ)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Configure os meios de pagamento para geração automática de PIX e a régua de bloqueio por inadimplência.
+                  </p>
+                </div>
+                {settingsSaveSuccess && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 animate-fade-in">
+                    <Check className="w-3.5 h-3.5" />
+                    Configurações salvas com sucesso!
+                  </span>
+                )}
+              </div>
+
+              {/* Mercado Pago Setup */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+                    Automação Mercado Pago (PIX com Baixa Instantânea)
+                  </span>
+                  <span className="text-[11px] text-slate-400">Tokens da sua conta Mercado Pago</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Access Token do Mercado Pago (Produção / Teste)
+                    </label>
+                    <input
+                      type="password"
+                      value={mpAccessToken}
+                      onChange={(e) => setMpAccessToken(e.target.value)}
+                      placeholder="APP_USR-xxxx-xxxx-xxxx..."
+                      className="w-full text-xs font-mono px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50/50 focus:bg-white focus:outline-hidden focus:border-sky-500"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Obtido em: Mercado Pago Developers &gt; Suas Aplicações &gt; Credenciais de Produção.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Public Key do Mercado Pago (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={mpPublicKey}
+                      onChange={(e) => setMpPublicKey(e.target.value)}
+                      placeholder="APP_USR-xxxx..."
+                      className="w-full text-xs font-mono px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50/50 focus:bg-white focus:outline-hidden focus:border-sky-500"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Chave pública para inicialização de checkout transparente.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Webhook endpoint notification */}
+                <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl flex items-center justify-between text-xs text-sky-900">
+                  <div>
+                    <span className="font-bold block">URL de Notificação Webhook (Mercado Pago):</span>
+                    <code className="text-[11px] font-mono text-sky-800">
+                      {window.location.origin}/api/webhooks/mercadopago
+                    </code>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/mercadopago`);
+                      alert("URL do Webhook copiada para a área de transferência!");
+                    }}
+                    className="px-3 py-1.5 bg-white border border-sky-300 text-sky-700 font-bold rounded-lg hover:bg-sky-100 transition-colors flex items-center gap-1.5 cursor-pointer text-xs"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copiar
+                  </button>
+                </div>
+              </div>
+
+              {/* Itaú PJ Setup */}
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    PIX PJ Itaú Unibanco (Alternativa Direta com Envio de Comprovante)
+                  </span>
+                  <span className="text-[11px] text-slate-400">Dados da conta jurídica</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Chave PIX Itaú PJ (CNPJ / E-mail / Celular)
+                    </label>
+                    <input
+                      type="text"
+                      value={itauPixKey}
+                      onChange={(e) => setItauPixKey(e.target.value)}
+                      placeholder="Ex: 54.892.120/0001-44"
+                      className="w-full text-xs font-mono px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-hidden focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Favorecido / Razão Social
+                    </label>
+                    <input
+                      type="text"
+                      value={itauBeneficiaryName}
+                      onChange={(e) => setItauBeneficiaryName(e.target.value)}
+                      placeholder="Ex: Romamia Viagens e Turismo Ltda"
+                      className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-hidden focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Banco, Agência e Conta Corrente PJ
+                    </label>
+                    <input
+                      type="text"
+                      value={itauBankInfo}
+                      onChange={(e) => setItauBankInfo(e.target.value)}
+                      placeholder="Banco Itaú (341) - Agência 0365 - C/C 98234-1"
+                      className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-hidden focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      WhatsApp para Recebimento de Comprovantes
+                    </label>
+                    <input
+                      type="text"
+                      value={supportWhatsapp}
+                      onChange={(e) => setSupportWhatsapp(e.target.value)}
+                      placeholder="5511999999999 (apenas números)"
+                      className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white focus:outline-hidden focus:border-sky-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Delinquency & Automatic Blocking Rule */}
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  Régua de Bloqueio Automático por Inadimplência
+                </span>
+
+                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1 max-w-xl">
+                    <p className="text-xs font-bold text-amber-950">
+                      Tolerância antes do Bloqueio Automático
+                    </p>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      Caso o sistema não identifique a liquidação da fatura após a quantidade de <strong>dias úteis</strong> especificada, o acesso da agência será automaticamente bloqueado. A tela de bloqueio será apresentada com o QR Code PIX do Mercado Pago e os dados do Itaú PJ para regularização imediata.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={delinquencyDaysTolerance}
+                      onChange={(e) => setDelinquencyDaysTolerance(parseInt(e.target.value) || 3)}
+                      className="w-16 text-center text-sm font-bold px-2 py-2 bg-white border border-amber-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                    />
+                    <span className="text-xs font-bold text-amber-900">dias úteis</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center gap-2"
+                >
+                  {isSavingSettings ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Salvando Configurações...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Salvar Todas as Configurações
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Plan Creation & Editing Modal */}
+      {isPlanModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden animate-scale-in">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-sky-600" />
+                  {editingPlan ? "Editar Plano de Assinatura" : "Criar Novo Plano de Assinatura"}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Defina o valor, quantidade de acessos e limite mensal de PDFs deste plano.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsPlanModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePlan} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nome do Plano *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={planFormName}
+                  onChange={(e) => setPlanFormName(e.target.value)}
+                  placeholder="Ex: Plano Gold, Diamante, Corporativo..."
+                  className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-hidden focus:border-sky-500 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Descrição Curta
+                </label>
+                <input
+                  type="text"
+                  value={planFormDescription}
+                  onChange={(e) => setPlanFormDescription(e.target.value)}
+                  placeholder="Ex: Para agências consolidadas com alto fluxo de passageiros"
+                  className="w-full text-xs px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-hidden focus:border-sky-500"
+                />
+              </div>
+
+              {/* 3 Core Fields specified by user: Valor, Quantidade de Acessos, Limite de PDF */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Valor Mensal (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    required
+                    value={planFormBasePrice}
+                    onChange={(e) => setPlanFormBasePrice(parseFloat(e.target.value) || 0)}
+                    className="w-full text-xs font-extrabold text-sky-800 px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:border-sky-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Qtd. de Acessos *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    required
+                    value={planFormBaseUsers}
+                    onChange={(e) => setPlanFormBaseUsers(parseInt(e.target.value) || 1)}
+                    className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:border-sky-500"
+                  />
+                  <span className="text-[10px] text-slate-400">Logins inclusos</span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Limite de PDFs *
+                  </label>
+                  <input
+                    type="number"
+                    min={-1}
+                    required
+                    value={planFormMaxVouchersPerMonth}
+                    onChange={(e) => setPlanFormMaxVouchersPerMonth(parseInt(e.target.value) || -1)}
+                    placeholder="-1 para Ilimitado"
+                    className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:border-sky-500"
+                  />
+                  <span className="text-[10px] text-slate-400">-1 = Ilimitado</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Preço por Usuário Extra (R$/mês)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={planFormPricePerExtraUser}
+                    onChange={(e) => setPlanFormPricePerExtraUser(parseFloat(e.target.value) || 0)}
+                    className="w-full text-xs px-3.5 py-2 border border-slate-300 rounded-xl focus:outline-hidden focus:border-sky-500 font-medium"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-6">
+                  <input
+                    type="checkbox"
+                    id="planFormPopular"
+                    checked={planFormIsPopular}
+                    onChange={(e) => setPlanFormIsPopular(e.target.checked)}
+                    className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300"
+                  />
+                  <label htmlFor="planFormPopular" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                    Destaque ("Mais Contratado")
+                  </label>
+                </div>
+              </div>
+
+              {/* Features List */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Benefícios & Recursos Inclusos
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={planFormFeatureInput}
+                    onChange={(e) => setPlanFormFeatureInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddFeatureToPlan();
+                      }
+                    }}
+                    placeholder="Ex: Suporte 24/7 via WhatsApp"
+                    className="flex-1 text-xs px-3.5 py-2 border border-slate-300 rounded-xl focus:outline-hidden focus:border-sky-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddFeatureToPlan}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    + Adicionar
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {planFormFeatures.map((feat, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs rounded-lg"
+                    >
+                      {feat}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFeatureFromPlan(idx)}
+                        className="text-slate-400 hover:text-red-500 cursor-pointer"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPlanModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingPlan}
+                  className="px-5 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-2 shadow-xs"
+                >
+                  {isSavingPlan && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>}
+                  {editingPlan ? "Salvar Alterações" : "Criar Plano"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

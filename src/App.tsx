@@ -19,6 +19,7 @@ import { useAuth } from "./contexts/AuthContext";
 import { Login } from "./components/Login";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
+import { BlockedScreen } from "./components/BlockedScreen";
 
 export default function App() {
   const { user, loading, clearSessionAndStorage } = useAuth();
@@ -535,6 +536,17 @@ export default function App() {
                 )}
               </div>
             </div>
+          ) : currentAgency?.subscription?.status === "blocked" && !isMasterMode ? (
+            <BlockedScreen
+              agency={currentAgency}
+              onRefreshStatus={async () => {
+                if (currentAgency?.id) {
+                  await loadAgencyData(currentAgency.id);
+                }
+              }}
+              onNavigateToMaster={handleBackToMaster}
+              isMasterUser={isMasterUser(user)}
+            />
           ) : (
             <>
               {activeTab === "generator" && (

@@ -461,26 +461,161 @@ app.put("/api/saas/settings", checkMasterAuth, async (req, res) => {
   res.json(store.platformSettings);
 });
 
+// Calculate business days overdue (excluding Saturdays and Sundays)
+function calculateBusinessDaysOverdue(dueDateStr: string): number {
+  if (!dueDateStr) return 0;
+  const parts = dueDateStr.split("-");
+  if (parts.length !== 3) return 0;
+  const dueYear = parseInt(parts[0], 10);
+  const dueMonth = parseInt(parts[1], 10) - 1;
+  const dueDay = parseInt(parts[2], 10);
+  const due = new Date(dueYear, dueMonth, dueDay, 0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (today.getTime() <= due.getTime()) return 0;
+
+  let count = 0;
+  const cur = new Date(due.getTime());
+  cur.setDate(cur.getDate() + 1);
+
+  while (cur.getTime() <= today.getTime()) {
+    const dayOfWeek = cur.getDay(); // 0 = Sunday, 6 = Saturday
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      count++;
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+// Evaluate delinquency and auto-block agencies past 3 business days of unpaid due date
+async function evaluateAgencyDelinquency(store: any): Promise<boolean> {
+  let changed = false;
+  const nowIso = new Date().toISOString();
+  const invoices = store.invoices || [];
+  const agencies = store.agencies || [];
+
+  for (const agency of agencies) {
+    if (!agency.subscription) continue;
+
+    const unpaidInvoices = invoices.filter(
+      (inv: any) => inv.agencyId === agency.id && (inv.status === "pending" || inv.status === "overdue")
+    );
+
+    let maxBusinessDays = 0;
+    let shouldBlock = false;
+
+    for (const inv of unpaidInvoices) {
+      const bDays = calculateBusinessDaysOverdue(inv.dueDate);
+      inv.businessDaysOverdue = bDays;
+      if (bDays > 0 && inv.status === "pending") {
+        inv.status = "overdue";
+        changed = true;
+      }
+      if (bDays > maxBusinessDays) {
+        maxBusinessDays = bDays;
+      }
+      if (bDays >= 3) {
+        shouldBlock = true;
+      }
+    }
+
+    agency.subscription.businessDaysOverdue = maxBusinessDays;
+
+    if (shouldBlock && agency.subscription.status !== "blocked") {
+      agency.subscription.status = "blocked";
+      agency.subscription.blockedReason = "inadimplencia_3_dias_uteis";
+      agency.subscription.blockedAt = nowIso;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    await saveStore(store);
+  }
+  return changed;
+}
+
 app.get("/api/saas/plans", async (req, res) => {
   const store = await getStore();
-  res.json((store.plans && store.plans.length > 0) ? store.plans : defaultPlans);
+  if (!store.plans || store.plans.length === 0) {
+    store.plans = defaultPlans.map(p => ({ ...p, isActive: true, createdAt: new Date().toISOString() }));
+    await saveStore(store);
+  }
+  res.json(store.plans);
+});
+
+app.post("/api/saas/plans", checkMasterAuth, async (req, res) => {
+  const store = await getStore();
+  store.plans = store.plans && store.plans.length > 0 ? store.plans : [...defaultPlans];
+
+  const newPlan = {
+    id: `plan-${Date.now()}`,
+    name: req.body.name || "Novo Plano",
+    code: (req.body.name || "custom").toLowerCase().replace(/[^a-z0-9]/g, "-"),
+    description: req.body.description || "Plano personalizado para agências",
+    basePrice: Number(req.body.basePrice) || 199.00,
+    baseUsers: Number(req.body.baseUsers) || 2,
+    pricePerExtraUser: Number(req.body.pricePerExtraUser) || 39.00,
+    maxVouchersPerMonth: Number(req.body.maxVouchersPerMonth ?? -1),
+    aiVoucherExtractionsIncluded: Number(req.body.aiVoucherExtractionsIncluded ?? 100),
+    isPopular: Boolean(req.body.isPopular),
+    isActive: req.body.isActive !== false,
+    features: Array.isArray(req.body.features) && req.body.features.length > 0 
+      ? req.body.features 
+      : ["Acesso completo ao emissor de vouchers", "Identidade visual personalizada"],
+    createdAt: new Date().toISOString()
+  };
+
+  store.plans.push(newPlan);
+  await saveStore(store);
+  res.status(201).json(newPlan);
 });
 
 app.put("/api/saas/plans/:id", checkMasterAuth, async (req, res) => {
   const { id } = req.params;
   const store = await getStore();
-  const index = (store.plans || []).findIndex((p) => p.id === id);
+  store.plans = store.plans && store.plans.length > 0 ? store.plans : [...defaultPlans];
+
+  const index = store.plans.findIndex((p: any) => p.id === id);
   if (index === -1) {
     return res.status(404).json({ error: "Plano não encontrado" });
   }
-  store.plans[index] = { ...store.plans[index], ...req.body };
+
+  store.plans[index] = {
+    ...store.plans[index],
+    ...req.body,
+    basePrice: req.body.basePrice !== undefined ? Number(req.body.basePrice) : store.plans[index].basePrice,
+    baseUsers: req.body.baseUsers !== undefined ? Number(req.body.baseUsers) : store.plans[index].baseUsers,
+    pricePerExtraUser: req.body.pricePerExtraUser !== undefined ? Number(req.body.pricePerExtraUser) : store.plans[index].pricePerExtraUser,
+    maxVouchersPerMonth: req.body.maxVouchersPerMonth !== undefined ? Number(req.body.maxVouchersPerMonth) : store.plans[index].maxVouchersPerMonth
+  };
+
   await saveStore(store);
   res.json(store.plans[index]);
+});
+
+app.delete("/api/saas/plans/:id", checkMasterAuth, async (req, res) => {
+  const { id } = req.params;
+  const store = await getStore();
+  const linkedAgencies = (store.agencies || []).filter((a: any) => a.subscription?.planId === id);
+  if (linkedAgencies.length > 0) {
+    return res.status(400).json({ 
+      error: `Não é possível excluir este plano pois existem ${linkedAgencies.length} agência(s) vinculadas a ele. Você pode desativá-lo para que novos clientes não o vejam.` 
+    });
+  }
+
+  store.plans = (store.plans || []).filter((p: any) => p.id !== id);
+  await saveStore(store);
+  res.json({ success: true });
 });
 
 // SaaS Agencies Management (Master SuperAdmin & Switcher)
 app.get("/api/saas/agencies", async (req, res) => {
   const store = await getStore();
+  await evaluateAgencyDelinquency(store);
   const requesterEmail = (
     req.headers['x-user-email'] ||
     req.query.userEmail ||
@@ -567,6 +702,7 @@ app.post("/api/saas/agencies", checkMasterAuth, async (req, res) => {
         extraUsersCount: extraUsersCount,
         extraUsersPrice: extraUsersPrice,
         monthlyFee: monthlyFee,
+        maxVouchersPerMonth: Number(sub.maxVouchersPerMonth ?? req.body.maxVouchersPerMonth ?? plan.maxVouchersPerMonth ?? -1),
         nextDueDate: sub.nextDueDate || req.body.nextDueDate || nextMonth.toISOString().split("T")[0],
         paymentMethod: sub.paymentMethod || req.body.paymentMethod || "pix",
         notes: sub.notes || req.body.notes || ""
@@ -1041,6 +1177,7 @@ app.post("/api/saas/invoices/:id/pay", checkMasterAuth, async (req, res) => {
   const invoice = store.invoices[index];
   invoice.status = "paid";
   invoice.paidAt = new Date().toISOString();
+  if (req.body.paymentType) invoice.paymentType = req.body.paymentType;
 
   // If not yet emitted NFS-e, auto-emit upon payment
   if (invoice.nfeStatus !== "emitted") {
@@ -1051,8 +1188,193 @@ app.post("/api/saas/invoices/:id/pay", checkMasterAuth, async (req, res) => {
     invoice.nfeStatus = "emitted";
   }
 
+  // Auto-desbloqueio da agência caso estivesse suspensa por falta de pagamento
+  const agency = (store.agencies || []).find((a) => a.id === invoice.agencyId);
+  if (agency && agency.subscription) {
+    const otherDelinquent = (store.invoices || []).some(
+      (inv) => inv.id !== invoice.id && inv.agencyId === agency.id && (inv.status === "pending" || inv.status === "overdue") && calculateBusinessDaysOverdue(inv.dueDate) >= 3
+    );
+    if (!otherDelinquent) {
+      agency.subscription.status = "active";
+      agency.subscription.blockedReason = undefined;
+      agency.subscription.blockedAt = undefined;
+      agency.subscription.businessDaysOverdue = 0;
+    }
+    if (agency.subscription.nextDueDate) {
+      const curDue = new Date(agency.subscription.nextDueDate + "T00:00:00");
+      curDue.setMonth(curDue.getMonth() + 1);
+      agency.subscription.nextDueDate = curDue.toISOString().split("T")[0];
+    }
+  }
+
   await saveStore(store);
-  res.json({ success: true, invoice });
+  res.json({ success: true, invoice, agencySubscription: agency?.subscription });
+});
+
+// Desbloqueio direto pelo Master
+app.post("/api/saas/agencies/:id/unblock", checkMasterAuth, async (req, res) => {
+  const { id } = req.params;
+  const store = await getStore();
+  const agency = (store.agencies || []).find((a) => a.id === id);
+  if (!agency) return res.status(404).json({ error: "Agência não encontrada" });
+
+  if (agency.subscription) {
+    agency.subscription.status = "active";
+    agency.subscription.blockedReason = undefined;
+    agency.subscription.blockedAt = undefined;
+    agency.subscription.businessDaysOverdue = 0;
+  }
+  await saveStore(store);
+  res.json({ success: true, agency });
+});
+
+// Mercado Pago Payment Creation for Invoice
+app.post("/api/saas/invoices/:id/create-mp-payment", async (req, res) => {
+  const { id } = req.params;
+  const store = await getStore();
+  const invoice = (store.invoices || []).find((inv) => inv.id === id);
+  if (!invoice) return res.status(404).json({ error: "Fatura não encontrada" });
+
+  const agency = (store.agencies || []).find((a) => a.id === invoice.agencyId);
+  const settings = store.platformSettings || {};
+  const mpToken = settings.mercadopagoAccessToken || process.env.MERCADOPAGO_ACCESS_TOKEN;
+
+  if (mpToken) {
+    try {
+      const host = req.get("host") || "localhost:3000";
+      const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+      const notificationUrl = `${protocol}://${host}/api/webhooks/mercadopago`;
+
+      const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${mpToken}`,
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": `inv-${invoice.id}-${Date.now()}`
+        },
+        body: JSON.stringify({
+          transaction_amount: Number(invoice.amount.toFixed(2)),
+          description: `AiVoucher - Fatura ${invoice.invoiceNumber} (${invoice.agencyName})`,
+          payment_method_id: "pix",
+          payer: {
+            email: agency?.email || agency?.masterLoginEmail || "financeiro@agencia.com.br",
+            first_name: invoice.agencyName.slice(0, 30),
+            identification: invoice.agencyCnpj ? {
+              type: "CNPJ",
+              number: invoice.agencyCnpj.replace(/\D/g, "")
+            } : undefined
+          },
+          notification_url: notificationUrl,
+          external_reference: invoice.id
+        })
+      });
+
+      const mpData = await mpResponse.json();
+      if (mpResponse.ok && mpData.id) {
+        invoice.mpPaymentId = String(mpData.id);
+        invoice.mpStatus = mpData.status;
+        invoice.paymentType = "mercadopago_pix";
+        if (mpData.point_of_interaction?.transaction_data) {
+          invoice.mpQrCode = mpData.point_of_interaction.transaction_data.qr_code;
+          invoice.mpQrCodeBase64 = mpData.point_of_interaction.transaction_data.qr_code_base64;
+          invoice.pixCode = mpData.point_of_interaction.transaction_data.qr_code;
+          invoice.mpTicketUrl = mpData.point_of_interaction.transaction_data.ticket_url;
+        }
+        await saveStore(store);
+        return res.json({ success: true, invoice, live: true });
+      } else {
+        console.warn("Mercado Pago API response warning:", mpData);
+      }
+    } catch (mpErr) {
+      console.warn("Mercado Pago request error, using fallback code:", mpErr);
+    }
+  }
+
+  // Fallback: PIX dinâmico formatado para a fatura
+  const cleanAmount = Number(invoice.amount).toFixed(2);
+  const generatedPix = `00020126580014BR.GOV.BCB.PIX0136pix-mp-${invoice.id.replace(/[^a-zA-Z0-9]/g, "")}520400005303986540${cleanAmount}5802BR5925AIVOUCHER SAAS BRASIL6009SAO PAULO62070503***6304E3A1`;
+  invoice.pixCode = generatedPix;
+  invoice.mpQrCode = generatedPix;
+  invoice.paymentType = "mercadopago_pix";
+  await saveStore(store);
+
+  res.json({ success: true, invoice, live: false });
+});
+
+// Mercado Pago Webhook / IPN Notification Endpoint
+app.post("/api/webhooks/mercadopago", async (req, res) => {
+  try {
+    const store = await getStore();
+    const settings = store.platformSettings || {};
+    const mpToken = settings.mercadopagoAccessToken || process.env.MERCADOPAGO_ACCESS_TOKEN;
+
+    const paymentId = req.body?.data?.id || req.body?.id || req.query?.id || req.query?.["data.id"];
+    console.log("Recebido Webhook Mercado Pago:", { paymentId, body: req.body });
+
+    let isApproved = false;
+    let externalRef = "";
+    let approvedPaymentId = String(paymentId || "");
+
+    if (mpToken && paymentId) {
+      try {
+        const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+          headers: { "Authorization": `Bearer ${mpToken}` }
+        });
+        if (mpRes.ok) {
+          const paymentDetails = await mpRes.json();
+          if (paymentDetails.status === "approved") {
+            isApproved = true;
+            externalRef = paymentDetails.external_reference || "";
+          }
+        }
+      } catch (e) {
+        console.warn("Error querying Mercado Pago payment status:", e);
+      }
+    }
+
+    if (isApproved && (externalRef || approvedPaymentId)) {
+      const invoice = (store.invoices || []).find(
+        (inv) => inv.id === externalRef || inv.mpPaymentId === approvedPaymentId
+      );
+
+      if (invoice && invoice.status !== "paid") {
+        invoice.status = "paid";
+        invoice.paidAt = new Date().toISOString();
+        invoice.mpStatus = "approved";
+
+        // Auto emit NFS-e
+        if (invoice.nfeStatus !== "emitted") {
+          invoice.nfeNumber = `NFS-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+          invoice.nfeSeries = "E";
+          invoice.nfeVerificationCode = `${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+          invoice.nfeEmittedAt = invoice.paidAt;
+          invoice.nfeStatus = "emitted";
+        }
+
+        // DESBLOQUEIO AUTOMÁTICO DA AGÊNCIA
+        const agency = (store.agencies || []).find((a) => a.id === invoice.agencyId);
+        if (agency && agency.subscription) {
+          agency.subscription.status = "active";
+          agency.subscription.blockedReason = undefined;
+          agency.subscription.blockedAt = undefined;
+          agency.subscription.businessDaysOverdue = 0;
+
+          if (agency.subscription.nextDueDate) {
+            const curDue = new Date(agency.subscription.nextDueDate + "T00:00:00");
+            curDue.setMonth(curDue.getMonth() + 1);
+            agency.subscription.nextDueDate = curDue.toISOString().split("T")[0];
+          }
+        }
+
+        await saveStore(store);
+      }
+    }
+
+    res.status(200).send("OK");
+  } catch (err) {
+    console.error("Webhook Mercado Pago error:", err);
+    res.status(200).send("OK");
+  }
 });
 
 // -------------------------------------------------------------
@@ -1061,6 +1383,8 @@ app.post("/api/saas/invoices/:id/pay", checkMasterAuth, async (req, res) => {
 
 app.get("/api/agency", async (req, res) => {
   const store = await getStore();
+  await evaluateAgencyDelinquency(store);
+
   const targetId = (req.query.agencyId as string) || (req.headers["x-agency-id"] as string);
 
   if (!targetId) {
@@ -1073,9 +1397,24 @@ app.get("/api/agency", async (req, res) => {
     return res.status(404).json({ error: "Agência não encontrada" });
   }
 
+  // Calculate monthly vouchers count for this agency
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthlyVouchersCount = (store.vouchers || []).filter(
+    (v: any) => v.agencyId === agency.id && (v.createdAt || "").startsWith(currentYearMonth)
+  ).length;
+
+  if (agency.subscription) {
+    agency.subscription.vouchersIssuedThisMonth = monthlyVouchersCount;
+  }
+
   // Attach dynamic active users count
   const usersCount = (store.agencyUsers || []).filter((u) => u.agencyId === agency.id && u.status === "active").length;
-  res.json({ ...agency, activeUsersCount: usersCount });
+  res.json({ 
+    ...agency, 
+    activeUsersCount: usersCount,
+    vouchersCount: (store.vouchers || []).filter((v) => v.agencyId === agency.id).length 
+  });
 });
 
 app.put("/api/agency", async (req, res) => {
@@ -1159,17 +1498,49 @@ app.get("/api/vouchers", async (req, res) => {
 app.post("/api/vouchers", async (req, res) => {
   const agencyId = req.body.agencyId || (req.query.agencyId as string) || (req.headers["x-agency-id"] as string);
 
-  const newVoucher = {
-    ...req.body,
-    id: req.body.id || `vouch-${Date.now()}`,
-    agencyId,
-    voucherNumber: req.body.voucherNumber || `VOU-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-    createdAt: new Date().toISOString(),
-    status: req.body.status || "emitted"
-  };
-
   try {
     const store = await getStore();
+    await evaluateAgencyDelinquency(store);
+
+    if (agencyId) {
+      const agency = (store.agencies || []).find((a: any) => a.id === agencyId);
+      if (agency && agency.subscription) {
+        if (agency.subscription.status === "blocked") {
+          return res.status(403).json({
+            error: "Acesso suspenso por pendência financeira. Regularize sua assinatura no menu de cobrança para emitir novos vouchers.",
+            code: "AGENCY_BLOCKED"
+          });
+        }
+
+        const maxVouchers = agency.subscription.maxVouchersPerMonth;
+        if (maxVouchers !== undefined && maxVouchers > 0) {
+          const now = new Date();
+          const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+          const currentMonthCount = (store.vouchers || []).filter(
+            (v: any) => v.agencyId === agencyId && (v.createdAt || "").startsWith(currentYearMonth)
+          ).length;
+
+          if (currentMonthCount >= maxVouchers) {
+            return res.status(403).json({
+              error: `Você atingiu o limite mensal de emissão de PDFs do seu plano (${currentMonthCount}/${maxVouchers} vouchers emitidos neste mês). Entre em contato com o suporte para solicitar um upgrade de plano.`,
+              code: "PDF_LIMIT_REACHED",
+              limit: maxVouchers,
+              current: currentMonthCount
+            });
+          }
+        }
+      }
+    }
+
+    const newVoucher = {
+      ...req.body,
+      id: req.body.id || `vouch-${Date.now()}`,
+      agencyId,
+      voucherNumber: req.body.voucherNumber || `VOU-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      createdAt: new Date().toISOString(),
+      status: req.body.status || "emitted"
+    };
+
     store.vouchers = store.vouchers || [];
     const idx = store.vouchers.findIndex((v: any) => v.id === newVoucher.id);
     if (idx >= 0) {

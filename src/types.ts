@@ -12,15 +12,17 @@ export type InvoiceStatus = 'paid' | 'pending' | 'overdue' | 'cancelled';
 export interface SaasPlan {
   id: string;
   name: string;
-  code: string;
+  code?: string;
   description: string;
   basePrice: number; // Valor base mensal
   baseUsers: number; // Quantidade de usuários inclusos
   pricePerExtraUser: number; // Valor por usuário extra mensal
   maxVouchersPerMonth: number; // Limite mensal ou -1 para ilimitado
-  aiVoucherExtractionsIncluded: number; // Leituras com IA inclusas
+  aiVoucherExtractionsIncluded?: number; // Leituras com IA inclusas
   isPopular?: boolean;
+  isActive?: boolean;
   features: string[];
+  createdAt?: string;
 }
 
 export interface AgencySubscription {
@@ -33,10 +35,15 @@ export interface AgencySubscription {
   extraUsersCount: number; // Quantidade de assentos adicionais
   extraUsersPrice: number; // Valor total dos assentos extras
   monthlyFee: number; // Valor total cobrado por mês da agência
+  maxVouchersPerMonth?: number; // Limite de PDFs/vouchers por mês (-1 = ilimitado)
+  vouchersIssuedThisMonth?: number; // Vouchers emitidos no mês atual
   nextDueDate: string; // Próximo vencimento YYYY-MM-DD
   trialEndsAt?: string;
   paymentMethod: 'pix' | 'boleto' | 'credit_card';
   notes?: string;
+  blockedReason?: string;
+  blockedAt?: string;
+  businessDaysOverdue?: number;
 }
 
 export interface AgencyUser {
@@ -65,6 +72,14 @@ export interface Invoice {
   usersCount: number; // Total de usuários faturados
   pixCode?: string;
   barcode?: string;
+  // Mercado Pago Details
+  mpPaymentId?: string;
+  mpQrCode?: string;
+  mpQrCodeBase64?: string;
+  mpTicketUrl?: string;
+  mpStatus?: string;
+  paymentType?: 'mercadopago_pix' | 'itau_pix' | 'boleto';
+  businessDaysOverdue?: number;
   // NFS-e (Nota Fiscal de Serviços Eletrônica)
   nfeNumber?: string;
   nfeSeries?: string;
@@ -75,6 +90,22 @@ export interface Invoice {
   nfeServiceDescription: string;
   nfeStatus: 'emitted' | 'not_emitted' | 'cancelled';
   downloadUrl?: string;
+}
+
+export interface PlatformSettings {
+  platformName?: string;
+  platformLogoUrl?: string;
+  platformIconUrl?: string;
+  primaryColor?: string;
+  mercadopagoAccessToken?: string;
+  mercadopagoPublicKey?: string;
+  itauPixKey?: string;
+  itauPixKeyType?: 'cnpj' | 'email' | 'telefone' | 'aleatoria';
+  itauBeneficiaryName?: string;
+  itauBankInfo?: string;
+  supportWhatsapp?: string;
+  supportEmail?: string;
+  gracePeriodDays?: number;
 }
 
 export interface SaasMetrics {
