@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const isBlocked = agency?.subscription?.status === "blocked";
   const { logout, user } = useAuth();
-  const [logoUrl, setLogoUrl] = useState<string>("/logo.jpeg");
+  const [logoUrl, setLogoUrl] = useState<string>("/logo.svg");
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {

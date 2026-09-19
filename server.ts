@@ -369,6 +369,91 @@ app.get("/api/saas/settings", async (req, res) => {
   res.json(store.platformSettings || {});
 });
 
+// PWA Web App Manifest (dynamic, reflects configured platform icon and name)
+app.get(["/manifest.webmanifest", "/manifest.json"], async (req, res) => {
+  try {
+    const store = await getStore();
+    const pSettings = store.platformSettings || {};
+    const appName = pSettings.platformName || "AiVoucher - Emissor de Vouchers & Gestão de Agências";
+    const appShortName = "AiVoucher";
+    const themeColor = pSettings.primaryColor || "#00277A";
+
+    res.setHeader("Content-Type", "application/manifest+json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache");
+    res.json({
+      id: "/",
+      name: appName,
+      short_name: appShortName,
+      description: "Plataforma SaaS para agências de viagens com emissão inteligente de vouchers por IA (AiVoucher).",
+      start_url: "/",
+      scope: "/",
+      display: "standalone",
+      orientation: "portrait-primary",
+      background_color: themeColor,
+      theme_color: themeColor,
+      icons: [
+        {
+          src: "/api/pwa-icon?size=192",
+          sizes: "192x192",
+          type: "image/png",
+          purpose: "any"
+        },
+        {
+          src: "/api/pwa-icon?size=512",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "any"
+        },
+        {
+          src: "/api/pwa-icon?size=512&maskable=1",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "maskable"
+        }
+      ]
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load manifest" });
+  }
+});
+
+// PWA Icon endpoint (serves the exact icon configured by the user, or SVG fallback)
+app.get("/api/pwa-icon", async (req, res) => {
+  try {
+    const store = await getStore();
+    const pSettings = store.platformSettings || {};
+    const iconData = pSettings.platformIconUrl || pSettings.platformLogoUrl;
+
+    if (iconData && typeof iconData === "string") {
+      if (iconData.startsWith("data:")) {
+        const matches = iconData.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          const contentType = matches[1];
+          const buffer = Buffer.from(matches[2], "base64");
+          res.setHeader("Content-Type", contentType);
+          res.setHeader("Cache-Control", "public, max-age=3600");
+          return res.send(buffer);
+        }
+      } else if (iconData.startsWith("http://") || iconData.startsWith("https://")) {
+        return res.redirect(iconData);
+      }
+    }
+
+    // Default fallback: serve public/logo-icon.svg
+    const svgPath = path.join(process.cwd(), "public", "logo-icon.svg");
+    if (fs.existsSync(svgPath)) {
+      res.setHeader("Content-Type", "image/svg+xml");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      return res.sendFile(svgPath);
+    }
+
+    res.status(404).send("Icon not found");
+  } catch (err) {
+    console.error("Error serving PWA icon:", err);
+    res.status(500).send("Error serving icon");
+  }
+});
+
 app.put("/api/saas/settings", checkMasterAuth, async (req, res) => {
   const store = await getStore();
   store.platformSettings = { ...store.platformSettings, ...req.body };

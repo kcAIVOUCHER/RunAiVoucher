@@ -18,6 +18,7 @@ import { ArrowLeft, Building2, Users, CreditCard, ChevronDown, Check, Loader2 } 
 import { useAuth } from "./contexts/AuthContext";
 import { Login } from "./components/Login";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 export default function App() {
   const { user, loading, clearSessionAndStorage } = useAuth();
@@ -89,6 +90,15 @@ export default function App() {
         }
       })
       .catch(() => {});
+
+    // Register Service Worker for PWA compliance and installation
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch((err) => {
+          console.warn("Service worker registration failed:", err);
+        });
+      });
+    }
   }, []);
 
   // Load all agencies for switcher & set initial agency
@@ -613,6 +623,9 @@ export default function App() {
         onClose={() => setIsHelpModalOpen(false)}
         agency={currentAgency}
       />
+
+      {/* PWA Mobile Install Prompt & Shortcut System */}
+      <PWAInstallPrompt />
     </div>
   );
 }
