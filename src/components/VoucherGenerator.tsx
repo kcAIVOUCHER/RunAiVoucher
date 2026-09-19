@@ -77,6 +77,8 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
   const [zoomScale, setZoomScale] = useState<number>(1);
   const [isAutoFit, setIsAutoFit] = useState<boolean>(true);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const voucherDocWrapperRef = useRef<HTMLDivElement>(null);
+  const [docRenderedHeight, setDocRenderedHeight] = useState<number>(0);
 
   // Auto-adapt zoom to container width across mobile and desktop
   useEffect(() => {
@@ -165,6 +167,20 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
 
   // Selected company object
   const selectedCompany = companies.find((c) => c.id === currentVoucher.companyId) || null;
+
+  // Measure exact rendered height of the unscaled voucher document to adjust mobile zoom box
+  useEffect(() => {
+    if (!voucherDocWrapperRef.current) return;
+    const updateHeight = () => {
+      if (voucherDocWrapperRef.current) {
+        setDocRenderedHeight(voucherDocWrapperRef.current.offsetHeight);
+      }
+    };
+    updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(voucherDocWrapperRef.current);
+    return () => ro.disconnect();
+  }, [currentVoucher, agency, selectedCompany, isVoucherReady]);
 
   // Handle company change - THE CORE USER REQUIREMENT
   const handleCompanyChange = (companyId: string) => {
@@ -1351,32 +1367,44 @@ export const VoucherGenerator: React.FC<VoucherGeneratorProps> = ({
             {/* Scalable Voucher Document with Adaptable Zoom */}
             <div
               ref={previewContainerRef}
-              className="w-full overflow-x-auto pb-4 transition-all duration-150 flex flex-col items-center space-y-4"
+              className="w-full transition-all duration-150 flex flex-col items-center"
             >
               <div
                 style={{
-                  transform: `scale(${zoomScale})`,
-                  transformOrigin: "top center",
-                  width: "800px",
-                  marginBottom: zoomScale < 1 ? `-${Math.round((1 - zoomScale) * 1180)}px` : "0px",
-                  transition: "transform 0.15s ease-out"
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "center",
+                  overflow: "visible",
+                  height: zoomScale < 1 && docRenderedHeight > 0 ? `${Math.ceil(docRenderedHeight * zoomScale)}px` : undefined
                 }}
-                className="shadow-md rounded-2xl bg-white"
               >
-                <VoucherDocument
-                  voucher={currentVoucher}
-                  agency={agency}
-                  company={selectedCompany}
-                />
+                <div
+                  ref={voucherDocWrapperRef}
+                  style={{
+                    transform: `scale(${zoomScale})`,
+                    transformOrigin: "top center",
+                    width: "800px",
+                    flexShrink: 0,
+                    marginBottom: zoomScale < 1 && docRenderedHeight > 0 ? `-${Math.round(docRenderedHeight * (1 - zoomScale))}px` : "0px",
+                    transition: "transform 0.15s ease-out"
+                  }}
+                  className="shadow-md rounded-2xl bg-white"
+                >
+                  <VoucherDocument
+                    voucher={currentVoucher}
+                    agency={agency}
+                    company={selectedCompany}
+                  />
+                </div>
               </div>
 
               {/* BOTÃO GERAR E SALVAR PDF NO FINAL DO BILHETE */}
-              <div className="no-print w-full flex justify-center mt-6">
+              <div className="no-print w-full flex justify-center mt-6 sm:mt-8 pb-10 relative z-30 pointer-events-auto">
                 <button
                   type="button"
                   onClick={handleDownloadRealPdf}
                   disabled={isGeneratingPdf}
-                  className="w-full sm:w-auto px-8 py-3.5 text-white text-sm font-extrabold rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-md hover:shadow-lg active:scale-[0.99] cursor-pointer disabled:opacity-60 min-h-[48px]"
+                  className="w-full sm:w-auto px-8 py-3.5 text-white text-sm font-extrabold rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-md hover:shadow-lg active:scale-[0.99] cursor-pointer disabled:opacity-60 min-h-[48px] relative z-30 pointer-events-auto"
                   style={{
                     background: "linear-gradient(135deg, #00277A 0%, #152A9D 100%)"
                   }}
