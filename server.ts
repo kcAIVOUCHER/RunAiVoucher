@@ -490,15 +490,22 @@ function calculateBusinessDaysOverdue(dueDateStr: string): number {
   return count;
 }
 
-// Evaluate delinquency and auto-block agencies past 3 business days of unpaid due date
+// Evaluate delinquency and auto-block agencies past tolerance business days of unpaid due date
 async function evaluateAgencyDelinquency(store: any): Promise<boolean> {
   let changed = false;
   const nowIso = new Date().toISOString();
   const invoices = store.invoices || [];
   const agencies = store.agencies || [];
+  const pSettings = store.platformSettings || {};
+  const toleranceDays = Number(pSettings.delinquencyDaysTolerance) || 3;
 
   for (const agency of agencies) {
     if (!agency.subscription) continue;
+
+    // Agências em modo teste (trial) não são bloqueadas por faturas pendentes
+    if (agency.subscription.status === "trial") {
+      continue;
+    }
 
     const unpaidInvoices = invoices.filter(
       (inv: any) => inv.agencyId === agency.id && (inv.status === "pending" || inv.status === "overdue")
@@ -517,7 +524,7 @@ async function evaluateAgencyDelinquency(store: any): Promise<boolean> {
       if (bDays > maxBusinessDays) {
         maxBusinessDays = bDays;
       }
-      if (bDays >= 3) {
+      if (bDays >= toleranceDays) {
         shouldBlock = true;
       }
     }
@@ -526,8 +533,15 @@ async function evaluateAgencyDelinquency(store: any): Promise<boolean> {
 
     if (shouldBlock && agency.subscription.status !== "blocked") {
       agency.subscription.status = "blocked";
-      agency.subscription.blockedReason = "inadimplencia_3_dias_uteis";
+      agency.subscription.blockedReason = `inadimplencia_${toleranceDays}_dias_uteis`;
       agency.subscription.blockedAt = nowIso;
+      changed = true;
+    } else if (!shouldBlock && agency.subscription.status === "blocked" && (agency.subscription.blockedReason?.startsWith("inadimplencia_") || agency.subscription.blockedReason === "inadimplencia_3_dias_uteis")) {
+      // Se não há mais faturas inadimplentes (por terem sido quitadas ou excluídas pelo Master), desbloqueia
+      agency.subscription.status = "active";
+      agency.subscription.blockedReason = undefined;
+      agency.subscription.blockedAt = undefined;
+      agency.subscription.businessDaysOverdue = 0;
       changed = true;
     }
   }
@@ -662,13 +676,21 @@ app.post("/api/saas/agencies", checkMasterAuth, async (req, res) => {
     const now = new Date().toISOString();
 
     const sub = req.body.subscription || {};
-    const planId = sub.planId || req.body.planId || "plan-pro";
-    const plan = (store.plans || defaultPlans).find((p) => p.id === planId) || defaultPlans[1];
+    const availablePlans = (store.plans && store.plans.length > 0) ? store.plans : defaultPlans;
+    const planId = sub.planId || req.body.planId || availablePlans[0]?.id || "plan-custom";
+    const plan = availablePlans.find((p: any) => p.id === planId) || availablePlans[0] || {
+      id: planId,
+      name: sub.planName || "Plano Personalizado",
+      basePrice: 199.00,
+      baseUsers: 2,
+      pricePerExtraUser: 39.00,
+      maxVouchersPerMonth: -1
+    };
 
-    const basePrice = Number(sub.basePrice ?? req.body.basePrice) || plan.basePrice;
-    const maxUsers = Number(sub.maxUsers ?? req.body.maxUsers) || plan.baseUsers;
-    const extraUsersCount = Math.max(0, maxUsers - plan.baseUsers);
-    const extraUsersPrice = extraUsersCount * plan.pricePerExtraUser;
+    const basePrice = Number(sub.basePrice ?? req.body.basePrice) || (plan.basePrice ?? 199);
+    const maxUsers = Number(sub.maxUsers ?? req.body.maxUsers) || (plan.baseUsers ?? 2);
+    const extraUsersCount = Math.max(0, maxUsers - (plan.baseUsers ?? 2));
+    const extraUsersPrice = extraUsersCount * (plan.pricePerExtraUser ?? 39);
     const monthlyFee = Number(sub.monthlyFee ?? req.body.monthlyFee) || (basePrice + extraUsersPrice);
 
     const nextMonth = new Date();
@@ -1165,6 +1187,42 @@ app.post("/api/saas/invoices/:id/emit-nfe", checkMasterAuth, async (req, res) =>
   res.json({ success: true, invoice });
 });
 
+// Helper to generate next recurring invoice automatically upon payment
+function generateNextRecurringInvoice(store: any, agency: any, paidInvoice?: any) {
+  if (!agency || !agency.subscription || agency.subscription.status === "cancelled") return;
+  const nextDueStr = agency.subscription.nextDueDate;
+  if (!nextDueStr) return;
+
+  const existingNextInv = (store.invoices || []).find(
+    (i: any) => i.agencyId === agency.id && (i.status === "pending" || i.status === "overdue") && i.dueDate === nextDueStr
+  );
+  if (!existingNextInv) {
+    const invNumber = `FAT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const nextDueDateObj = new Date(nextDueStr + "T00:00:00");
+    const nextPeriod = `Mensalidade ${nextDueDateObj.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`;
+    const monthlyFee = Number(agency.subscription.monthlyFee) || (paidInvoice ? Number(paidInvoice.amount) : 299);
+    const nextInvoice = {
+      id: `inv-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      invoiceNumber: invNumber,
+      agencyId: agency.id,
+      agencyName: agency.name,
+      agencyCnpj: agency.cnpj,
+      amount: monthlyFee,
+      dueDate: nextDueStr,
+      status: "pending",
+      billingPeriod: nextPeriod,
+      usersCount: agency.subscription.maxUsers || 5,
+      pixCode: `00020126580014BR.GOV.BCB.PIX0136${agency.id}-charge520400005303986540${monthlyFee.toFixed(2)}5802BR5925AIVOUCHER SAAS BRASIL6009SAO PAULO62070503***6304ABCD`,
+      barcode: `34191.79001 01043.510047 91020.150008 8 98350000${Math.floor(monthlyFee * 100)}`,
+      nfeTaxRate: 2.5,
+      nfeTaxValue: Number((monthlyFee * 0.025).toFixed(2)),
+      nfeServiceDescription: `Licenciamento de software em nuvem AiVoucher - RomamiaViagens® - Plano ${agency.subscription.planName || "Assinatura"} (${agency.subscription.maxUsers || 5} usuários). Código 1.05.`,
+      nfeStatus: "not_emitted"
+    };
+    store.invoices.unshift(nextInvoice);
+  }
+}
+
 // Pay invoice
 app.post("/api/saas/invoices/:id/pay", checkMasterAuth, async (req, res) => {
   const { id } = req.params;
@@ -1191,8 +1249,9 @@ app.post("/api/saas/invoices/:id/pay", checkMasterAuth, async (req, res) => {
   // Auto-desbloqueio da agência caso estivesse suspensa por falta de pagamento
   const agency = (store.agencies || []).find((a) => a.id === invoice.agencyId);
   if (agency && agency.subscription) {
+    const tolerance = Number(store.platformSettings?.delinquencyDaysTolerance) || 3;
     const otherDelinquent = (store.invoices || []).some(
-      (inv) => inv.id !== invoice.id && inv.agencyId === agency.id && (inv.status === "pending" || inv.status === "overdue") && calculateBusinessDaysOverdue(inv.dueDate) >= 3
+      (inv) => inv.id !== invoice.id && inv.agencyId === agency.id && (inv.status === "pending" || inv.status === "overdue") && calculateBusinessDaysOverdue(inv.dueDate) >= tolerance
     );
     if (!otherDelinquent) {
       agency.subscription.status = "active";
@@ -1205,10 +1264,30 @@ app.post("/api/saas/invoices/:id/pay", checkMasterAuth, async (req, res) => {
       curDue.setMonth(curDue.getMonth() + 1);
       agency.subscription.nextDueDate = curDue.toISOString().split("T")[0];
     }
+    // Geração recorrente automática da próxima fatura
+    generateNextRecurringInvoice(store, agency, invoice);
   }
 
   await saveStore(store);
   res.json({ success: true, invoice, agencySubscription: agency?.subscription });
+});
+
+// Delete invoice (Exclusão definitiva de fatura pelo Master)
+app.delete("/api/saas/invoices/:id", checkMasterAuth, async (req, res) => {
+  const { id } = req.params;
+  const store = await getStore();
+  const index = (store.invoices || []).findIndex((inv) => inv.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: "Fatura não encontrada" });
+  }
+
+  const deletedInvoice = store.invoices.splice(index, 1)[0];
+
+  // Re-avalia se a agência deve ser desbloqueada após a remoção da fatura
+  await evaluateAgencyDelinquency(store);
+  await saveStore(store);
+
+  res.json({ success: true, deletedInvoice });
 });
 
 // Desbloqueio direto pelo Master
@@ -1419,6 +1498,9 @@ app.post("/api/webhooks/mercadopago", async (req, res) => {
             curDue.setMonth(curDue.getMonth() + 1);
             agency.subscription.nextDueDate = curDue.toISOString().split("T")[0];
           }
+
+          // Geração recorrente automática da próxima fatura
+          generateNextRecurringInvoice(store, agency, invoice);
         }
 
         await saveStore(store);

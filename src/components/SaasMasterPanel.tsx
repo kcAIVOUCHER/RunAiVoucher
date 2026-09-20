@@ -164,11 +164,7 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
     loadData();
   }, []);
 
-  const getPlans = (): SaasPlan[] => plans.length > 0 ? plans : [
-    { id: "plan-starter", name: "Starter Agência", description: "Para agências iniciantes", basePrice: 199.00, baseUsers: 2, pricePerExtraUser: 49.00, maxVouchersPerMonth: 50, features: [] },
-    { id: "plan-pro", name: "Profissional Corp", description: "Para agências em expansão", basePrice: 389.00, baseUsers: 5, pricePerExtraUser: 39.00, maxVouchersPerMonth: 150, features: [], isPopular: true },
-    { id: "plan-enterprise", name: "Enterprise Corporate", description: "Para grandes operadoras", basePrice: 890.00, baseUsers: 15, pricePerExtraUser: 29.00, maxVouchersPerMonth: -1, features: [] }
-  ];
+  const getPlans = (): SaasPlan[] => plans;
 
   // Recalculate fee automatically when plan or users change in form
   const handlePlanChange = (planId: string) => {
@@ -203,7 +199,7 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
     setFormCnpj(agency.cnpj || "");
     setFormMasterEmail(agency.masterLoginEmail || agency.email || "");
     setFormPhone(agency.phone || "");
-    setFormPlanId(agency.subscription?.planId || "plan-pro");
+    setFormPlanId(agency.subscription?.planId || plans[0]?.id || "");
     setFormMaxUsers(agency.subscription?.maxUsers || 5);
     setFormMaxVouchersPerMonth(agency.subscription?.maxVouchersPerMonth ?? -1);
     setFormMonthlyFee(Number(agency.subscription?.monthlyFee) || 389.00);
@@ -223,10 +219,10 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
     setFormPassword("");
     setFormPhone("");
     const defaultPlan = getPlans()[0];
-    setFormPlanId(defaultPlan?.id || "plan-pro");
-    setFormMaxUsers(defaultPlan?.baseUsers || 5);
+    setFormPlanId(defaultPlan?.id || "");
+    setFormMaxUsers(defaultPlan?.baseUsers || 2);
     setFormMaxVouchersPerMonth(defaultPlan?.maxVouchersPerMonth ?? -1);
-    setFormMonthlyFee(defaultPlan?.basePrice || 389.00);
+    setFormMonthlyFee(defaultPlan?.basePrice || 199.00);
     setFormStatus("active");
     setFormBillingCycle("monthly");
     const nextMonth = new Date();
@@ -729,6 +725,29 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
     } catch (err) {
       console.error("Error marking invoice paid:", err);
       alert("Erro de conexão ao registrar pagamento.");
+    }
+  };
+
+  // Delete invoice (Exclusão pelo Master)
+  const handleDeleteInvoice = async (invoiceId: string, invoiceNumber: string, agencyName: string) => {
+    if (!confirm(`Deseja realmente excluir a fatura ${invoiceNumber} da agência "${agencyName}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/saas/invoices/${invoiceId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceId));
+        await loadData(); // Recarrega agências para atualizar status de inadimplência caso necessário
+      } else {
+        const errData = await res.json().catch(() => ({ error: "Erro ao excluir fatura" }));
+        alert(`Erro: ${errData.error || res.statusText}`);
+      }
+    } catch (err) {
+      console.error("Error deleting invoice:", err);
+      alert("Erro de conexão ao excluir fatura.");
     }
   };
 
@@ -1251,6 +1270,14 @@ export const SaasMasterPanel: React.FC<SaasMasterPanelProps> = ({ onEnterAgency 
                               Ver Espelho
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleDeleteInvoice(inv.id, inv.invoiceNumber, inv.agencyName)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer inline-flex items-center"
+                            title="Excluir Fatura do Cliente"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     );

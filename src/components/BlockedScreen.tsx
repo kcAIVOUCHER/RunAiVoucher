@@ -43,7 +43,6 @@ export const BlockedScreen: React.FC<BlockedScreenProps> = ({
   const loadInvoiceData = async () => {
     try {
       setLoading(true);
-      const [invRes, setRes] = useState();
       const resInvoices = await fetch(`/api/saas/invoices?agencyId=${agency.id}`);
       const resSettings = await fetch("/api/saas/settings");
 
