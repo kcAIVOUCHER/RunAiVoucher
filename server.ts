@@ -1228,6 +1228,53 @@ app.post("/api/saas/agencies/:id/unblock", checkMasterAuth, async (req, res) => 
   res.json({ success: true, agency });
 });
 
+// Helper: Calculate PIX CRC16 CCITT
+function calculatePixCRC16(payload: string): string {
+  const data = payload + '6304';
+  let crc = 0xFFFF;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+      } else {
+        crc = (crc << 1) & 0xFFFF;
+      }
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function generateValidPixCopiaECola(pixKey: string, merchantName: string, merchantCity: string, amount: number, txId: string): string {
+  const formatField = (id: string, value: string) => {
+    const len = value.length.toString().padStart(2, '0');
+    return `${id}${len}${value}`;
+  };
+
+  let payload = formatField('00', '01');
+  payload += formatField('01', '12');
+
+  const gui = formatField('00', 'br.gov.bcb.pix');
+  const key = formatField('01', pixKey);
+  payload += formatField('26', gui + key);
+
+  payload += formatField('52', '0000');
+  payload += formatField('53', '986');
+  if (amount > 0) {
+    payload += formatField('54', amount.toFixed(2));
+  }
+  payload += formatField('58', 'BR');
+  payload += formatField('59', merchantName.slice(0, 25));
+  payload += formatField('60', merchantCity.slice(0, 15));
+
+  const txIdField = formatField('05', txId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 25));
+  payload += formatField('62', txIdField);
+
+  payload += '6304';
+  const crc = calculatePixCRC16(payload.slice(0, -4));
+  return payload + crc;
+}
+
 // Mercado Pago Payment Creation for Invoice
 app.post("/api/saas/invoices/:id/create-mp-payment", async (req, res) => {
   const { id } = req.params;
@@ -1245,6 +1292,18 @@ app.post("/api/saas/invoices/:id/create-mp-payment", async (req, res) => {
       const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
       const notificationUrl = `${protocol}://${host}/api/webhooks/mercadopago`;
 
+      const cleanCnpj = invoice.agencyCnpj ? invoice.agencyCnpj.replace(/\D/g, "") : "";
+      const payerObj: any = {
+        email: agency?.email || agency?.masterLoginEmail || "financeiro@aivoucher.com.br",
+        first_name: (invoice.agencyName || "Agencia").split(" ")[0].slice(0, 30),
+        last_name: (invoice.agencyName || "Agencia").split(" ").slice(1).join(" ").slice(0, 30) || "Cliente"
+      };
+      if (cleanCnpj.length === 14) {
+        payerObj.identification = { type: "CNPJ", number: cleanCnpj };
+      } else if (cleanCnpj.length === 11) {
+        payerObj.identification = { type: "CPF", number: cleanCnpj };
+      }
+
       const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
         method: "POST",
         headers: {
@@ -1256,14 +1315,7 @@ app.post("/api/saas/invoices/:id/create-mp-payment", async (req, res) => {
           transaction_amount: Number(invoice.amount.toFixed(2)),
           description: `AiVoucher - Fatura ${invoice.invoiceNumber} (${invoice.agencyName})`,
           payment_method_id: "pix",
-          payer: {
-            email: agency?.email || agency?.masterLoginEmail || "financeiro@agencia.com.br",
-            first_name: invoice.agencyName.slice(0, 30),
-            identification: invoice.agencyCnpj ? {
-              type: "CNPJ",
-              number: invoice.agencyCnpj.replace(/\D/g, "")
-            } : undefined
-          },
+          payer: payerObj,
           notification_url: notificationUrl,
           external_reference: invoice.id
         })
@@ -1283,22 +1335,25 @@ app.post("/api/saas/invoices/:id/create-mp-payment", async (req, res) => {
         await saveStore(store);
         return res.json({ success: true, invoice, live: true });
       } else {
-        console.warn("Mercado Pago API response warning:", mpData);
+        console.warn("Mercado Pago API response error/warning:", mpData);
       }
     } catch (mpErr) {
-      console.warn("Mercado Pago request error, using fallback code:", mpErr);
+      console.warn("Mercado Pago request error, using robust fallback code:", mpErr);
     }
   }
 
-  // Fallback: PIX dinâmico formatado para a fatura
-  const cleanAmount = Number(invoice.amount).toFixed(2);
-  const generatedPix = `00020126580014BR.GOV.BCB.PIX0136pix-mp-${invoice.id.replace(/[^a-zA-Z0-9]/g, "")}520400005303986540${cleanAmount}5802BR5925AIVOUCHER SAAS BRASIL6009SAO PAULO62070503***6304E3A1`;
+  // Fallback: PIX dinâmico formatado com CRC16 válido (Chave PIX da plataforma ou default)
+  const pixKeyFallback = settings.itauPixKey || "54.892.120/0001-44";
+  const merchantName = "AIVOUCHER SAAS";
+  const merchantCity = "SAO PAULO";
+  const generatedPix = generateValidPixCopiaECola(pixKeyFallback, merchantName, merchantCity, Number(invoice.amount), invoice.id);
+  
   invoice.pixCode = generatedPix;
   invoice.mpQrCode = generatedPix;
   invoice.paymentType = "mercadopago_pix";
   await saveStore(store);
 
-  res.json({ success: true, invoice, live: false });
+  res.json({ success: true, invoice, live: false, warning: "Usando PIX dinâmico com CRC16 válido (API do Mercado Pago não retornou transação)" });
 });
 
 // Mercado Pago Webhook / IPN Notification Endpoint
