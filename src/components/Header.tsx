@@ -244,6 +244,18 @@ export const Header: React.FC<HeaderProps> = ({
                     {vouchersCount}
                   </span>
                 </button>
+
+                <button
+                  onClick={() => handleTabClick("subscription")}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    activeTab === "subscription"
+                      ? "bg-sky-50 text-sky-800 border border-sky-300 shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4 text-amber-600" />
+                  <span>Financeiro</span>
+                </button>
               </>
             )}
 
@@ -356,250 +368,145 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Drawer Scrollable Body - Organizado por Áreas conforme Requisito */}
+        {/* Drawer Scrollable Body - Clean, non-redundant navigation */}
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
-          {/* ÁREA 1: VOUCHERS */}
           <div className="space-y-1">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2 block">
-              VOUCHERS
+              NAVEGAÇÃO PRINCIPAL
             </span>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <button
                 type="button"
-                onClick={handleNewVoucherClick}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-sky-50 hover:text-sky-800 flex items-center justify-between transition-colors min-h-[44px]"
+                onClick={() => {
+                  handleTabClick("generator");
+                  setMenuOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold flex items-center justify-between transition-colors min-h-[44px] ${
+                  activeTab === "generator" ? "bg-sky-50 text-sky-800 border border-sky-200" : "text-slate-700 hover:bg-slate-100"
+                }`}
               >
                 <div className="flex items-center gap-2.5">
                   <FileText className="w-4 h-4 text-sky-600" />
-                  <span>Novo voucher</span>
+                  <span>Criar Voucher</span>
                 </div>
                 <span className="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold">
-                  Criar
+                  Novo
                 </span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleTabClick("history")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <FolderOpen className="w-4 h-4 text-emerald-600" />
-                  <span>Meus vouchers</span>
-                </div>
-                <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
-                  {vouchersCount}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabClick("history")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <FileCheck className="w-4 h-4 text-slate-400" />
-                  <span>Rascunhos</span>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* ÁREA 2: DOCUMENTOS */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2 block">
-              DOCUMENTOS
-            </span>
-            <div className="space-y-0.5">
-              <button
-                type="button"
-                onClick={() => handleTabClick("generator")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Upload className="w-4 h-4 text-sky-600" />
-                  <span>Importar documentos</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabClick("history")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Layers className="w-4 h-4 text-indigo-500" />
-                  <span>Documentos processados</span>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* ÁREA 3: CLIENTES */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2 block">
-              CLIENTES
-            </span>
-            <div className="space-y-0.5">
-              <button
-                type="button"
-                onClick={() => handleTabClick("companies")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
+                onClick={() => {
+                  handleTabClick("companies");
+                  setMenuOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold flex items-center justify-between transition-colors min-h-[44px] ${
+                  activeTab === "companies" ? "bg-sky-50 text-sky-800 border border-sky-200" : "text-slate-700 hover:bg-slate-100"
+                }`}
               >
                 <div className="flex items-center gap-2.5">
                   <Building2 className="w-4 h-4 text-indigo-600" />
-                  <span>Empresas</span>
+                  <span>Empresas Clientes</span>
                 </div>
-                <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
                   {companiesCount}
                 </span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleTabClick("history")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
+                onClick={() => {
+                  handleTabClick("history");
+                  setMenuOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold flex items-center justify-between transition-colors min-h-[44px] ${
+                  activeTab === "history" ? "bg-sky-50 text-sky-800 border border-sky-200" : "text-slate-700 hover:bg-slate-100"
+                }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <UserCheck className="w-4 h-4 text-teal-600" />
-                  <span>Passageiros</span>
+                  <History className="w-4 h-4 text-emerald-600" />
+                  <span>Histórico de Vouchers</span>
                 </div>
+                <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
+                  {vouchersCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleTabClick("subscription");
+                  setMenuOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold flex items-center justify-between transition-colors min-h-[44px] ${
+                  activeTab === "subscription" ? "bg-sky-50 text-sky-800 border border-sky-200" : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <CreditCard className="w-4 h-4 text-amber-600" />
+                  <span>Financeiro & Assinatura</span>
+                </div>
+                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                  Plano
+                </span>
               </button>
             </div>
           </div>
 
-          {/* ÁREA 4: CONFIGURAÇÕES */}
-          <div className="space-y-1">
+          <div className="space-y-1 pt-2 border-t border-slate-100">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2 block">
-              CONFIGURAÇÕES
+              GESTÃO DA AGÊNCIA
             </span>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <button
                 type="button"
-                onClick={() => handleTabClick("generator")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
+                onClick={() => {
+                  handleTabClick("agency");
+                  setMenuOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors min-h-[44px] ${
+                  activeTab === "agency" ? "bg-sky-50 text-sky-800 border border-sky-200" : "text-slate-700 hover:bg-slate-100"
+                }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Settings className="w-4 h-4 text-slate-500" />
-                  <span>Preferências do voucher</span>
-                </div>
+                <Palette className="w-4 h-4 text-pink-500" />
+                <span>Identidade Visual e Logo</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleTabClick("generator")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
+                onClick={() => {
+                  handleTabClick("team");
+                  setMenuOpen(false);
+                }}
+                className="w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-2.5 transition-colors min-h-[44px]"
               >
-                <div className="flex items-center gap-2.5">
-                  <DollarSign className="w-4 h-4 text-emerald-500" />
-                  <span>Valores</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabClick("generator")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Plane className="w-4 h-4 text-purple-500" />
-                  <span>Tarifas</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabClick("agency")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Palette className="w-4 h-4 text-pink-500" />
-                  <span>Identidade visual</span>
-                </div>
+                <Users className="w-4 h-4 text-purple-600" />
+                <span>Equipe e Operadores</span>
               </button>
             </div>
           </div>
 
-          {/* ÁREA 5: RELATÓRIOS */}
-          <div className="space-y-1">
+          <div className="space-y-1 pt-2 border-t border-slate-100">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2 block">
-              RELATÓRIOS
+              SUPORTE
             </span>
-            <div className="space-y-0.5">
-              <button
-                type="button"
-                onClick={() => handleTabClick("history")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <History className="w-4 h-4 text-slate-500" />
-                  <span>Histórico</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleTabClick("history")}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-between transition-colors min-h-[44px]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <BarChart3 className="w-4 h-4 text-amber-500" />
-                  <span>Relatórios</span>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* ÁREA 6: AJUDA */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2 block">
-              AJUDA
-            </span>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <button
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
                   if (onOpenHelp) onOpenHelp();
                 }}
-                className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-sky-800 bg-sky-50 hover:bg-sky-100 flex items-center justify-between transition-colors min-h-[44px]"
+                className="w-full text-left px-3.5 py-3 rounded-xl text-xs font-bold text-sky-800 bg-sky-50 hover:bg-sky-100 flex items-center justify-between transition-colors min-h-[44px]"
               >
                 <div className="flex items-center gap-2.5">
                   <HelpCircle className="w-4 h-4 text-sky-600" />
-                  <span>Central de ajuda</span>
+                  <span>Central de Ajuda</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-sky-400" />
               </button>
             </div>
           </div>
-
-          {/* ÁREA ADMINISTRATIVA (Se aplicável) */}
-          {(!userRole || userRole === "saas_admin" || userRole === "master" || userRole === "agency_admin" || isMasterMode) && (
-            <div className="space-y-1 pt-2 border-t border-slate-100">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2 block">
-                ADMINISTRAÇÃO DA AGÊNCIA
-              </span>
-              <div className="space-y-0.5">
-                <button
-                  type="button"
-                  onClick={() => handleTabClick("team")}
-                  className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-2.5 transition-colors min-h-[44px]"
-                >
-                  <Users className="w-4 h-4 text-purple-600" />
-                  <span>Equipe e Operadores</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleTabClick("subscription")}
-                  className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-2.5 transition-colors min-h-[44px]"
-                >
-                  <CreditCard className="w-4 h-4 text-amber-600" />
-                  <span>Assinatura e Cobrança</span>
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Drawer Footer */}
