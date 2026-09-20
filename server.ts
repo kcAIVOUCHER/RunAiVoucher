@@ -1358,13 +1358,23 @@ function generateValidPixCopiaECola(pixKey: string, merchantName: string, mercha
   return payload + crc;
 }
 
-async function generateInvoicePix(invoice: any, agency: any, store: any, host: string, protocol: string) {
+// Mercado Pago Payment Creation for Invoice
+app.post("/api/saas/invoices/:id/create-mp-payment", async (req, res) => {
+  const { id } = req.params;
+  const store = await getStore();
+  const invoice = (store.invoices || []).find((inv) => inv.id === id);
+  if (!invoice) return res.status(404).json({ error: "Fatura não encontrada" });
+
+  const agency = (store.agencies || []).find((a) => a.id === invoice.agencyId);
   const settings = store.platformSettings || {};
   const mpToken = settings.mercadopagoAccessToken || process.env.MERCADOPAGO_ACCESS_TOKEN;
 
   if (mpToken) {
     try {
+      const host = req.get("host") || "localhost:3000";
+      const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
       const notificationUrl = `${protocol}://${host}/api/webhooks/mercadopago`;
+
       const cleanCnpj = invoice.agencyCnpj ? invoice.agencyCnpj.replace(/\D/g, "") : "";
       const payerObj: any = {
         email: agency?.email || agency?.masterLoginEmail || "financeiro@aivoucher.com.br",
@@ -1405,7 +1415,8 @@ async function generateInvoicePix(invoice: any, agency: any, store: any, host: s
           invoice.pixCode = mpData.point_of_interaction.transaction_data.qr_code;
           invoice.mpTicketUrl = mpData.point_of_interaction.transaction_data.ticket_url;
         }
-        return invoice;
+        await saveStore(store);
+        return res.json({ success: true, invoice, live: true });
       } else {
         console.warn("Mercado Pago API response error/warning:", mpData);
       }
@@ -1423,312 +1434,9 @@ async function generateInvoicePix(invoice: any, agency: any, store: any, host: s
   invoice.pixCode = generatedPix;
   invoice.mpQrCode = generatedPix;
   invoice.paymentType = "mercadopago_pix";
-  return invoice;
-}
-
-// CNPJ Automatic Lookup via BrasilAPI and ReceitaWS fallback
-app.get("/api/saas/cnpj/:cnpj", async (req, res) => {
-  try {
-    const rawCnpj = (req.params.cnpj || "").replace(/\D/g, "");
-    if (rawCnpj.length !== 14) {
-      return res.status(400).json({ error: "CNPJ inválido. Digite os 14 dígitos numéricos." });
-    }
-
-    // 1. Try BrasilAPI with 4s timeout
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const bRes = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${rawCnpj}`, {
-        signal: controller.signal,
-        headers: { "User-Agent": "AiVoucher-SaaS/1.0" }
-      });
-      clearTimeout(timeoutId);
-
-      if (bRes.ok) {
-        const d = await bRes.json();
-        return res.json({
-          razaoSocial: d.razao_social || d.nome || "",
-          nomeFantasia: d.nome_fantasia || d.fantasia || d.razao_social || "",
-          telefone: d.ddd_telefone_1 || d.telefone || "",
-          email: d.email || "",
-          logradouro: d.logradouro || "",
-          numero: d.numero || "",
-          bairro: d.bairro || "",
-          municipio: d.municipio || "",
-          uf: d.uf || "",
-          cep: d.cep || ""
-        });
-      }
-    } catch (bErr) {
-      console.warn("BrasilAPI failed, trying ReceitaWS fallback:", bErr);
-    }
-
-    // 2. Fallback: ReceitaWS
-    try {
-      const rRes = await fetch(`https://www.receitaws.com.br/v1/cnpj/${rawCnpj}`, {
-        headers: { "User-Agent": "AiVoucher-SaaS/1.0" }
-      });
-      if (rRes.ok) {
-        const d = await rRes.json();
-        if (d.status !== "ERROR") {
-          return res.json({
-            razaoSocial: d.nome || "",
-            nomeFantasia: d.fantasia || d.nome || "",
-            telefone: d.telefone || "",
-            email: d.email || "",
-            logradouro: d.logradouro || "",
-            numero: d.numero || "",
-            bairro: d.bairro || "",
-            municipio: d.municipio || "",
-            uf: d.uf || "",
-            cep: d.cep || ""
-          });
-        }
-      }
-    } catch (rErr) {
-      console.warn("ReceitaWS failed:", rErr);
-    }
-
-    return res.status(404).json({ error: "CNPJ não localizado na Receita Federal. Você pode preencher os dados manualmente." });
-  } catch (err: any) {
-    res.status(500).json({ error: "Falha ao consultar CNPJ: " + err.message });
-  }
-});
-
-// Real-time Invoice Status Check for Instant Checkout Polling
-app.get("/api/saas/invoices/:id/status", async (req, res) => {
-  const { id } = req.params;
-  const store = await getStore();
-  const invoice = (store.invoices || []).find((inv) => inv.id === id);
-  if (!invoice) return res.status(404).json({ error: "Fatura não encontrada" });
-
-  const agency = (store.agencies || []).find((a) => a.id === invoice.agencyId);
-  res.json({
-    id: invoice.id,
-    invoiceNumber: invoice.invoiceNumber,
-    status: invoice.status,
-    paidAt: invoice.paidAt,
-    agencyStatus: agency?.subscription?.status || "active",
-    amount: invoice.amount
-  });
-});
-
-// Public Self-Registration for Agencies (Trial with 5 vouchers OR direct subscription)
-app.post("/api/saas/register", async (req, res) => {
-  try {
-    const store = await getStore();
-    const {
-      name,
-      tradeName,
-      cnpj,
-      masterLoginEmail,
-      password,
-      phone,
-      planId,
-      mode = "trial" // "trial" | "direct"
-    } = req.body;
-
-    if (!masterLoginEmail || !password) {
-      return res.status(400).json({ error: "E-mail e senha são obrigatórios para o cadastro." });
-    }
-
-    const cleanEmail = masterLoginEmail.toLowerCase().trim();
-
-    // Check if user already exists
-    const existingUser = (store.agencyUsers || []).find((u) => (u.email || "").toLowerCase().trim() === cleanEmail);
-    if (existingUser) {
-      return res.status(400).json({ error: "Já existe uma agência cadastrada com este e-mail. Por favor, faça login ou recupere sua senha." });
-    }
-
-    const availablePlans = (store.plans && store.plans.length > 0) ? store.plans : defaultPlans;
-    const selectedPlan = availablePlans.find((p: any) => p.id === planId) || availablePlans[0];
-
-    const agencyId = `agency-${Date.now()}`;
-    const now = new Date();
-    const nowIso = now.toISOString();
-
-    const trialDays = 7;
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + trialDays);
-    const dueDateIso = dueDate.toISOString().split("T")[0];
-
-    const agencyName = name || tradeName || "Agência de Viagens";
-    const newAgency = {
-      id: agencyId,
-      name: agencyName,
-      tradeName: tradeName || name || "Agência de Viagens",
-      cnpj: cnpj || "",
-      logoUrl: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=300&auto=format&fit=crop&q=80",
-      email: cleanEmail,
-      masterLoginEmail: cleanEmail,
-      phone: phone || "",
-      whatsapp: phone || "",
-      website: "",
-      address: req.body.address || "",
-      primaryColor: "#0284c7",
-      footerNotes: "Apresente-se com documento oficial e antecedência de 2h.",
-      emergencyPhone: phone || "",
-      defaultPriceDisplay: "apenas_total",
-      hideFareFamilyByDefault: false,
-      hideClassByDefault: true,
-      subscription: {
-        planId: selectedPlan.id,
-        planName: selectedPlan.name,
-        status: mode === "direct" ? "pending" : "trial",
-        trialVouchersLimit: 5,
-        trialVouchersUsed: 0,
-        trialExpiresAt: dueDate.toISOString(),
-        billingCycle: "monthly",
-        maxUsers: selectedPlan.baseUsers || 2,
-        basePrice: selectedPlan.basePrice || 199,
-        extraUsersCount: 0,
-        extraUsersPrice: 0,
-        monthlyFee: selectedPlan.basePrice || 199,
-        maxVouchersPerMonth: selectedPlan.maxVouchersPerMonth || 150,
-        nextDueDate: dueDateIso,
-        paymentMethod: "pix",
-        notes: `Auto-cadastro no portal (${mode === "direct" ? "Assinatura Direta" : "Teste Grátis 5 Vouchers"}).`
-      },
-      createdAt: nowIso
-    };
-
-    // Master User
-    const masterUser = {
-      id: `usr-${Date.now()}`,
-      agencyId: agencyId,
-      name: req.body.responsibleName || req.body.name || "Administrador",
-      email: cleanEmail,
-      role: "agency_admin",
-      status: "active",
-      createdAt: nowIso
-    };
-
-    // Firebase Auth user creation via REST
-    let firebaseApiKey = process.env.FIREBASE_API_KEY || "";
-    try {
-      const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-      if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        firebaseApiKey = config.apiKey || process.env.FIREBASE_API_KEY;
-      }
-    } catch (e) {}
-
-    if (firebaseApiKey) {
-      try {
-        const fbRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseApiKey}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: cleanEmail,
-            password: password,
-            returnSecureToken: true
-          })
-        });
-        const fbData = await fbRes.json();
-        if (fbData.error && fbData.error.message === "EMAIL_EXISTS") {
-          // OK, existing in Firebase, link local user
-        } else if (fbData.idToken) {
-          masterUser.id = fbData.localId;
-          await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              idToken: fbData.idToken,
-              displayName: masterUser.name,
-              returnSecureToken: false
-            })
-          }).catch(console.warn);
-        }
-      } catch (fbErr) {
-        console.warn("Firebase Auth error during register:", fbErr);
-      }
-    }
-
-    // Generate initial invoice
-    const invNumber = `FAT-${now.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const fee = selectedPlan.basePrice || 199;
-    let initialInvoice: any = {
-      id: `inv-${Date.now()}`,
-      invoiceNumber: invNumber,
-      agencyId: agencyId,
-      agencyName: newAgency.name,
-      agencyCnpj: newAgency.cnpj,
-      amount: fee,
-      dueDate: dueDateIso,
-      status: "pending",
-      billingPeriod: `Mensalidade ${now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`,
-      usersCount: selectedPlan.baseUsers || 2,
-      pixCode: "",
-      barcode: `34191.79001 01043.510047 91020.150008 8 98350000${Math.floor(fee * 100)}`,
-      nfeTaxRate: 2.5,
-      nfeTaxValue: Number((fee * 0.025).toFixed(2)),
-      nfeServiceDescription: `Licenciamento de software em nuvem AiVoucher - RomamiaViagens® - Plano ${selectedPlan.name}. Código 1.05.`,
-      nfeStatus: "not_emitted"
-    };
-
-    const host = req.get("host") || "localhost:3000";
-    const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
-    initialInvoice = await generateInvoicePix(initialInvoice, newAgency, store, host, protocol);
-
-    store.agencies = store.agencies || [];
-    store.agencyUsers = store.agencyUsers || [];
-    store.invoices = store.invoices || [];
-
-    store.agencies.unshift(newAgency);
-    store.agencyUsers.push(masterUser);
-    store.invoices.unshift(initialInvoice);
-
-    await saveStore(store);
-
-    // Send welcome email if resend is configured
-    if (process.env.RESEND_API_KEY) {
-      try {
-        await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
-          to: cleanEmail,
-          subject: `Bem-vindo ao AiVoucher - Seu teste de 5 vouchers está liberado!`,
-          html: `
-            <div style="font-family: sans-serif; padding: 24px; color: #1e293b; max-width: 600px;">
-              <h2 style="color: #00277A;">Olá, ${masterUser.name}!</h2>
-              <p>Sua conta para a agência <strong>${newAgency.name}</strong> foi ativada com sucesso!</p>
-              <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; padding: 16px; border-radius: 12px; margin: 20px 0;">
-                <p style="margin: 0 0 8px 0; font-weight: bold; color: #0369a1;">Seu teste gratuito de 5 vouchers está ativo.</p>
-                <p style="margin: 0; font-size: 13px; color: #0284c7;">Acesse a plataforma e comece a emitir seus Forfaits e vouchers agora mesmo.</p>
-              </div>
-              <p>Plano selecionado: <strong>${selectedPlan.name}</strong> (${Number(fee).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês)</p>
-            </div>
-          `
-        }).catch(console.warn);
-      } catch (e) {}
-    }
-
-    res.status(201).json({
-      success: true,
-      agency: newAgency,
-      user: masterUser,
-      invoice: initialInvoice
-    });
-  } catch (err: any) {
-    console.error("Error in /api/saas/register:", err);
-    res.status(500).json({ error: err.message || "Erro no servidor ao registrar agência." });
-  }
-});
-
-// Mercado Pago Payment Creation for Invoice
-app.post("/api/saas/invoices/:id/create-mp-payment", async (req, res) => {
-  const { id } = req.params;
-  const store = await getStore();
-  const invoice = (store.invoices || []).find((inv) => inv.id === id);
-  if (!invoice) return res.status(404).json({ error: "Fatura não encontrada" });
-
-  const agency = (store.agencies || []).find((a) => a.id === invoice.agencyId);
-  const host = req.get("host") || "localhost:3000";
-  const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
-
-  const updatedInvoice = await generateInvoicePix(invoice, agency, store, host, protocol);
   await saveStore(store);
 
-  res.json({ success: true, invoice: updatedInvoice, live: !!updatedInvoice.mpPaymentId });
+  res.json({ success: true, invoice, live: false, warning: "Usando PIX dinâmico com CRC16 válido (API do Mercado Pago não retornou transação)" });
 });
 
 // Mercado Pago Webhook / IPN Notification Endpoint

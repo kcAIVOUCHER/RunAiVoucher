@@ -18,7 +18,7 @@ import {
   MessageCircle,
   AlertCircle
 } from "lucide-react";
-import { AgencyProfile, Invoice, SaasPlan } from "../types";
+import { AgencyProfile, Invoice } from "../types";
 import { NfeViewerModal } from "./NfeViewerModal";
 
 interface AgencySubscriptionViewProps {
@@ -37,8 +37,6 @@ export const AgencySubscriptionView: React.FC<AgencySubscriptionViewProps> = ({
   const [copiedPixId, setCopiedPixId] = useState<string | null>(null);
   const [copiedModalPix, setCopiedModalPix] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [plans, setPlans] = useState<SaasPlan[]>([]);
-  const [plansLoading, setPlansLoading] = useState(false);
 
   const sub = agency.subscription;
 
@@ -60,15 +58,6 @@ export const AgencySubscriptionView: React.FC<AgencySubscriptionViewProps> = ({
   useEffect(() => {
     setIsLoading(true);
     loadInvoices();
-
-    setPlansLoading(true);
-    fetch("/api/saas/plans")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setPlans(data.filter((p: any) => p.isActive !== false));
-      })
-      .catch((err) => console.error("Error loading plans:", err))
-      .finally(() => setPlansLoading(false));
   }, [agency.id]);
 
   const handleCopyPix = (invoiceId: string, pixCode?: string) => {
@@ -100,13 +89,19 @@ export const AgencySubscriptionView: React.FC<AgencySubscriptionViewProps> = ({
                 Assinatura do Software
               </span>
               <span
-                className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                  sub?.status === "blocked"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-emerald-100 text-emerald-800"
+                className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                  sub?.status === "active"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : sub?.status === "trial"
+                    ? "bg-blue-100 text-blue-800"
+                    : "bg-red-100 text-red-800"
                 }`}
               >
-                {sub?.status === "blocked" ? "Suspensa" : "Ativa"}
+                {sub?.status === "active"
+                  ? "Ativa"
+                  : sub?.status === "trial"
+                  ? "Período de Teste"
+                  : "Suspensa"}
               </span>
             </div>
             <h2 className="text-xl font-extrabold text-slate-900 mt-1">
@@ -166,103 +161,6 @@ export const AgencySubscriptionView: React.FC<AgencySubscriptionViewProps> = ({
             <span className="text-[10px] text-slate-500">Renovação contínua</span>
           </div>
         </div>
-      </div>
-
-      {/* Planos Oficiais Disponíveis */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-        <div className="border-b border-slate-100 pb-4 mb-6">
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-sky-700" />
-            Planos Oficiais Disponíveis
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Conheça os planos ativos no sistema para adequar a capacidade de emissões e logins da sua agência.
-          </p>
-        </div>
-
-        {plansLoading ? (
-          <div className="py-8 text-center text-xs text-slate-400">Carregando planos disponíveis...</div>
-        ) : plans.length === 0 ? (
-          <div className="py-8 text-center text-xs text-slate-500">Nenhum plano configurado no momento.</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {plans.map((p) => {
-              const isCurrent =
-                sub?.planId === p.id ||
-                (sub?.planName && sub.planName.toLowerCase().includes(p.name.toLowerCase()));
-
-              return (
-                <div
-                  key={p.id}
-                  className={`rounded-2xl p-5 border transition-all flex flex-col justify-between ${
-                    isCurrent
-                      ? "border-[#00277A] bg-sky-50/40 ring-2 ring-[#00277A]/20"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="font-bold text-sm text-slate-900">{p.name}</span>
-                      {isCurrent ? (
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                          Plano Atual
-                        </span>
-                      ) : p.isPopular ? (
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-sky-800 bg-sky-100 px-2 py-0.5 rounded-full">
-                          Mais Escolhido
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="flex items-baseline gap-1 my-3">
-                      <span className="text-2xl font-black text-slate-900">
-                        {Number(p.basePrice).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                      </span>
-                      <span className="text-xs text-slate-500 font-normal">/mês</span>
-                    </div>
-
-                    <p className="text-xs text-slate-500 mb-4 leading-relaxed">{p.description}</p>
-
-                    <div className="space-y-2 text-xs border-t border-slate-100 pt-3 text-slate-700">
-                      <div className="flex items-center gap-2 font-medium">
-                        <Users className="w-3.5 h-3.5 text-sky-700 shrink-0" />
-                        <span>{p.baseUsers} usuários inclusos</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-600">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>{p.maxVouchersPerMonth === -1 ? "Vouchers ilimitados" : `${p.maxVouchersPerMonth} vouchers/mês`}</span>
-                      </div>
-                      {p.features && p.features.map((feat: string, idx: number) => (
-                        <div key={idx} className="flex items-center gap-2 text-slate-600">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>{feat}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-4 border-t border-slate-100">
-                    {isCurrent ? (
-                      <div className="w-full py-2 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl text-center border border-emerald-200">
-                        ✓ Plano Ativo na sua Conta
-                      </div>
-                    ) : (
-                      <a
-                        href={`https://wa.me/5511999999999?text=${encodeURIComponent(`Olá! Gostaria de migrar minha agência ${agency.name} (CNPJ: ${agency.cnpj || "N/A"}) para o plano ${p.name}.`)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full py-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5"
-                      >
-                        <span>Solicitar Troca de Plano</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Invoices and Tax Notes (NFS-e) Section */}
